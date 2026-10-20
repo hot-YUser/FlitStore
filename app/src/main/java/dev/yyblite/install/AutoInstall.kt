@@ -29,4 +29,14 @@ object AutoInstall {
         InstallHandoff.install(ctx, file)
         return true
     }
+
+    /** 重新下載同一套件時重置自動安裝紀錄，讓新檔案能再次自動觸發。 */
+    fun reset(ctx: Context, pkg: String) {
+        val prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val edit = prefs.edit()
+        prefs.all.keys
+            .filter { it.startsWith("$pkg@") }
+            .forEach { edit.remove(it) }
+        edit.apply()
+    }
 }

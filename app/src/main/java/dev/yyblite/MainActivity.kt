@@ -29,6 +29,7 @@ import dev.yyblite.data.LookupResult
 import dev.yyblite.data.StoreApp
 import dev.yyblite.data.StoreClient
 import dev.yyblite.data.UpdateChecker
+import dev.yyblite.data.UpdateDecision
 import dev.yyblite.data.VersionOrder
 import dev.yyblite.databinding.ActivityMainBinding
 import dev.yyblite.download.DownloadBus
@@ -220,7 +221,7 @@ class MainActivity : AppCompatActivity() {
                 { app, result ->
                     when (result) {
                         is LookupResult.Found -> {
-                            if (VersionOrder.compare(result.app.versionName, app.versionName) > 0) {
+                            if (UpdateDecision.needsUpdate(result.app, app.versionName, app.versionCode)) {
                                 found.add(RowItem(result.app, app.versionName, true))
                             }
                         }
@@ -266,7 +267,7 @@ class MainActivity : AppCompatActivity() {
                     store = app,
                     installedVersion = installed?.versionName,
                     hasUpdate = installed != null &&
-                        VersionOrder.compare(app.versionName, installed.versionName) > 0
+                        UpdateDecision.needsUpdate(app, installed.versionName, installed.versionCode)
                 )
             }
             runOnUiThread {
@@ -304,14 +305,25 @@ class MainActivity : AppCompatActivity() {
             val next = when (result) {
                 is LookupResult.Found -> {
                     val current = installed?.versionName ?: item.installedVersion
-                    if (current == null || VersionOrder.compare(result.app.versionName, current) <= 0) {
+                    if (current == null ||
+                        !UpdateDecision.needsUpdate(
+                            result.app,
+                            current,
+                            installed?.versionCode ?: installedVersionCode(item.store.pkg)
+                        )
+                    ) {
                         null
                     } else {
                         RowItem(result.app, current, true)
                     }
                 }
                 is LookupResult.Failed -> {
-                    val base = installed ?: InstalledApp(item.store.pkg, item.store.name, item.store.versionName)
+                    val base = installed ?: InstalledApp(
+                        item.store.pkg,
+                        item.store.name,
+                        item.store.versionName,
+                        installedVersionCode(item.store.pkg)
+                    )
                     RowItem(placeholder(base), base.versionName, false, true)
                 }
                 LookupResult.NotInStore -> null
@@ -333,7 +345,7 @@ class MainActivity : AppCompatActivity() {
                 val next = when (result) {
                     is LookupResult.Found -> {
                         if (installed == null ||
-                            VersionOrder.compare(result.app.versionName, installed) > 0
+                            UpdateDecision.needsUpdate(result.app, installed, installedVersionCode(pkg))
                         ) {
                             RowItem(result.app, installed, true)
                         } else {
@@ -347,6 +359,13 @@ class MainActivity : AppCompatActivity() {
                 setStatus(updateStatus())
             }
         }
+    }
+
+    private fun installedVersionCode(pkg: String): Long = try {
+        @Suppress("DEPRECATION")
+        packageManager.getPackageInfo(pkg, 0).longVersionCode
+    } catch (_: PackageManager.NameNotFoundException) {
+        0L
     }
 
     private fun installedVersion(pkg: String): String? = try {
@@ -417,6 +436,7 @@ class MainActivity : AppCompatActivity() {
         apkUrl = "",
         apkUrl64 = null,
         apkMd5 = "",
+        signatureMd5 = null,
         sizeBytes = -1,
         sizeDesc = null,
         iconUrl = null,

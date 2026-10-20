@@ -3,7 +3,12 @@ package dev.yyblite.data
 import android.content.Context
 import android.content.pm.ApplicationInfo
 
-data class InstalledApp(val pkg: String, val label: String, val versionName: String)
+data class InstalledApp(
+    val pkg: String,
+    val label: String,
+    val versionName: String,
+    val versionCode: Long
+)
 
 object InstalledScanner {
     fun scan(ctx: Context): List<InstalledApp> {
@@ -22,7 +27,8 @@ object InstalledScanner {
                 InstalledApp(
                     pkg = info.packageName,
                     label = app.loadLabel(pm).toString(),
-                    versionName = info.versionName ?: ""
+                    versionName = info.versionName ?: "",
+                    versionCode = info.longVersionCode
                 )
             )
         }

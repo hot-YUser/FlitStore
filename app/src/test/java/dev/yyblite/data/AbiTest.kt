@@ -29,6 +29,7 @@ class AbiTest {
         apkUrl = "https://cdn.example/universal.apk",
         apkUrl64 = url64,
         apkMd5 = "00000000000000000000000000000000",
+        signatureMd5 = null,
         sizeBytes = 1,
         sizeDesc = null,
         iconUrl = null,

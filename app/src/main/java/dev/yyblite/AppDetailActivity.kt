@@ -21,7 +21,7 @@ import dev.yyblite.data.Abi
 import dev.yyblite.data.LookupResult
 import dev.yyblite.data.StoreApp
 import dev.yyblite.data.StoreClient
-import dev.yyblite.data.VersionOrder
+import dev.yyblite.data.UpdateDecision
 import dev.yyblite.databinding.ActivityDetailBinding
 import dev.yyblite.download.DownloadBus
 import dev.yyblite.download.DownloadStarter
@@ -265,7 +265,14 @@ class AppDetailActivity : AppCompatActivity() {
 
     private fun isUpToDate(store: StoreApp): Boolean {
         val installed = installedVersion ?: return false
-        return VersionOrder.compare(store.versionName, installed) <= 0
+        return !UpdateDecision.needsUpdate(store, installed, installedVersionCodeOf(store.pkg))
+    }
+
+    private fun installedVersionCodeOf(pkg: String): Long = try {
+        @Suppress("DEPRECATION")
+        packageManager.getPackageInfo(pkg, 0).longVersionCode
+    } catch (_: PackageManager.NameNotFoundException) {
+        0L
     }
 
     private fun installedVersionOf(pkg: String): String? = try {

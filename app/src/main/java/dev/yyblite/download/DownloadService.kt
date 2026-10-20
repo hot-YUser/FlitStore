@@ -15,6 +15,7 @@ import androidx.core.app.ServiceCompat
 import dev.yyblite.MainActivity
 import dev.yyblite.R
 import dev.yyblite.data.StoreApp
+import dev.yyblite.install.ApkSignature
 import dev.yyblite.install.AutoInstall
 import dev.yyblite.install.InstallNotification
 import java.io.File
@@ -32,8 +33,15 @@ class DownloadService : Service() {
         private const val EXTRA_URL = "url"
         private const val EXTRA_MD5 = "md5"
         private const val EXTRA_ABI = "abi"
+        private const val EXTRA_SIGNATURE = "signature"
 
-        fun intent(ctx: Context, app: StoreApp, url: String, abi: String, md5: String): Intent =
+        fun intent(
+            ctx: Context,
+            app: StoreApp,
+            url: String,
+            abi: String,
+            md5: String
+        ): Intent =
             Intent(ctx, DownloadService::class.java)
                 .putExtra(EXTRA_PKG, app.pkg)
                 .putExtra(EXTRA_NAME, app.name)
@@ -41,6 +49,7 @@ class DownloadService : Service() {
                 .putExtra(EXTRA_URL, url)
                 .putExtra(EXTRA_MD5, md5)
                 .putExtra(EXTRA_ABI, abi)
+                .putExtra(EXTRA_SIGNATURE, app.signatureMd5)
     }
 
     private val active = AtomicInteger(0)
@@ -63,16 +72,25 @@ class DownloadService : Service() {
         val url = intent.getStringExtra(EXTRA_URL) ?: return START_NOT_STICKY
         val md5 = intent.getStringExtra(EXTRA_MD5) ?: ""
         val abi = intent.getStringExtra(EXTRA_ABI) ?: "v7a"
+        val signature = intent.getStringExtra(EXTRA_SIGNATURE)
 
         active.incrementAndGet()
         startForegroundCompat(buildNotification(getString(R.string.notification_title), name, 0, -1))
         DownloadBus.publish(DownloadState(pkg, Phase.QUEUED, version = version, abi = abi))
 
-        DownloadQueue.submit { runDownload(pkg, name, version, url, md5, abi) }
+        DownloadQueue.submit { runDownload(pkg, name, version, url, md5, abi, signature) }
         return START_NOT_STICKY
     }
 
-    private fun runDownload(pkg: String, name: String, version: String, url: String, md5: String, abi: String) {
+    private fun runDownload(
+        pkg: String,
+        name: String,
+        version: String,
+        url: String,
+        md5: String,
+        abi: String,
+        expectedSignature: String?
+    ) {
         android.util.Log.i("YYBDL", "start $pkg $version $url")
         DownloadBus.publish(DownloadState(pkg, Phase.RUNNING, version = version, abi = abi))
         var total = -1L
@@ -91,6 +109,18 @@ class DownloadService : Service() {
 
             if (target.exists() && !target.delete()) throw IOException("無法覆寫舊檔")
             if (!part.renameTo(target)) throw IOException("無法重新命名下載檔")
+
+            if (!expectedSignature.isNullOrBlank()) {
+                val actual = ApkSignature.certificateMd5(this, target)
+                if (actual == null) {
+                    target.delete()
+                    throw IOException("無法讀取 APK 簽章")
+                }
+                if (!actual.equals(expectedSignature, ignoreCase = true)) {
+                    target.delete()
+                    throw IOException("簽章不符：商店 $expectedSignature / 檔案 $actual")
+                }
+            }
 
             android.util.Log.i("YYBDL", "done $pkg bytes=$total")
             DownloadBus.publish(DownloadState(pkg, Phase.DONE, total, total, version = version, abi = abi))

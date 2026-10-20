@@ -8,6 +8,7 @@ data class StoreApp(
     val apkUrl: String,
     val apkUrl64: String?,
     val apkMd5: String,
+    val signatureMd5: String?,
     val sizeBytes: Long,
     val sizeDesc: String?,
     val iconUrl: String?,

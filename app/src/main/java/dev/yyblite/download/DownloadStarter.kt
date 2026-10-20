@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import dev.yyblite.data.Abi
 import dev.yyblite.data.StoreApp
+import dev.yyblite.install.AutoInstall
 import java.io.File
 
 /** 下載入口共用邏輯：依裝置 ABI 選連結、組出檔案路徑、啟動前景服務。 */
@@ -19,6 +20,7 @@ object DownloadStarter {
         File(ctx.getExternalFilesDir("apk"), "${app.pkg}_${app.versionName}_${abiTag(app)}.apk")
 
     fun start(ctx: Context, app: StoreApp) {
+        AutoInstall.reset(ctx, app.pkg)
         val url = urlFor(app)
         ContextCompat.startForegroundService(
             ctx,
