@@ -1,13 +1,20 @@
 package dev.yyblite
 
 import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
@@ -27,7 +34,9 @@ import dev.yyblite.databinding.ActivityMainBinding
 import dev.yyblite.download.DownloadBus
 import dev.yyblite.download.DownloadStarter
 import dev.yyblite.download.Phase
+import dev.yyblite.install.AutoInstall
 import dev.yyblite.install.InstallHandoff
+import dev.yyblite.ui.AppVisibility
 import dev.yyblite.ui.AppAdapter
 import dev.yyblite.ui.RowItem
 import java.util.Collections
@@ -56,6 +65,14 @@ class MainActivity : AppCompatActivity() {
     private var subscription: AutoCloseable? = null
     private val pendingDownloads = ArrayList<StoreApp>()
 
+    private val packageReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val pkg = intent.data?.schemeSpecificPart ?: return
+            if (pkg == packageName) return
+            refreshPackage(pkg)
+        }
+    }
+
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             val pending = ArrayList(pendingDownloads)
@@ -77,6 +94,14 @@ class MainActivity : AppCompatActivity() {
 
         binding.updateAll.setOnClickListener { updateAll() }
         binding.updateAll.isEnabled = false
+
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addDataScheme("package")
+        }
+        ContextCompat.registerReceiver(this, packageReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
 
         refresh()
     }
@@ -114,6 +139,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        AppVisibility.onStart()
+        DownloadBus.snapshot().values
+            .filter { it.phase == Phase.DONE }
+            .forEach { AutoInstall.tryInstall(this, it.pkg, it.version ?: return@forEach, it.abi ?: "v7a") }
         subscription = DownloadBus.subscribe { state ->
             runOnUiThread { adapter.setState(state) }
         }
@@ -121,12 +150,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
+        AppVisibility.onStop()
         subscription?.close()
         subscription = null
         super.onStop()
     }
 
     override fun onDestroy() {
+        runCatching { unregisterReceiver(packageReceiver) }
         checker.shutdown()
         io.shutdownNow()
         super.onDestroy()
@@ -214,6 +245,7 @@ class MainActivity : AppCompatActivity() {
                         setProgress(false)
                         setStatus(updateStatus())
                         busy = false
+                        maybeAskOverlay()
                     }
                 }
             )
@@ -289,6 +321,39 @@ class MainActivity : AppCompatActivity() {
                 setStatus(updateStatus())
             }
         }
+    }
+
+    /** 安裝完成後只重查這一個套件：已是最新就從清單移除。 */
+    private fun refreshPackage(pkg: String) {
+        if (busy) return
+        io.execute {
+            val installed = installedVersion(pkg)
+            val result = StoreClient.lookup(pkg)
+            runOnUiThread {
+                val next = when (result) {
+                    is LookupResult.Found -> {
+                        if (installed == null ||
+                            VersionOrder.compare(result.app.versionName, installed) > 0
+                        ) {
+                            RowItem(result.app, installed, true)
+                        } else {
+                            null
+                        }
+                    }
+                    else -> null
+                }
+                if (next == null) DownloadBus.clear(pkg)
+                replaceRow(pkg, next)
+                setStatus(updateStatus())
+            }
+        }
+    }
+
+    private fun installedVersion(pkg: String): String? = try {
+        @Suppress("DEPRECATION")
+        packageManager.getPackageInfo(pkg, 0).versionName
+    } catch (_: PackageManager.NameNotFoundException) {
+        null
     }
 
     private fun replaceRow(pkg: String, next: RowItem?) {
@@ -370,6 +435,29 @@ class MainActivity : AppCompatActivity() {
             updates > 0 -> getString(R.string.status_updates, updates)
             else -> getString(R.string.status_none)
         }
+    }
+
+    /** 背景自動安裝需要懸浮視窗授權，首次出現可更新項目時詢問一次。 */
+    private fun maybeAskOverlay() {
+        if (Settings.canDrawOverlays(this)) return
+        if (updateRows.none { it.hasUpdate }) return
+        val prefs = getSharedPreferences("ui", MODE_PRIVATE)
+        if (prefs.getBoolean("overlay_asked", false)) return
+        prefs.edit().putBoolean("overlay_asked", true).apply()
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.overlay_title)
+            .setMessage(R.string.overlay_message)
+            .setPositiveButton(R.string.overlay_open) { _, _ ->
+                startActivity(
+                    Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:$packageName")
+                    )
+                )
+            }
+            .setNegativeButton(R.string.overlay_later, null)
+            .show()
     }
 
     private fun showRows(rows: List<RowItem>) {

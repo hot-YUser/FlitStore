@@ -15,6 +15,8 @@ import androidx.core.app.ServiceCompat
 import dev.yyblite.MainActivity
 import dev.yyblite.R
 import dev.yyblite.data.StoreApp
+import dev.yyblite.install.AutoInstall
+import dev.yyblite.install.InstallNotification
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
@@ -64,7 +66,7 @@ class DownloadService : Service() {
 
         active.incrementAndGet()
         startForegroundCompat(buildNotification(getString(R.string.notification_title), name, 0, -1))
-        DownloadBus.publish(DownloadState(pkg, Phase.QUEUED))
+        DownloadBus.publish(DownloadState(pkg, Phase.QUEUED, version = version, abi = abi))
 
         DownloadQueue.submit { runDownload(pkg, name, version, url, md5, abi) }
         return START_NOT_STICKY
@@ -72,7 +74,7 @@ class DownloadService : Service() {
 
     private fun runDownload(pkg: String, name: String, version: String, url: String, md5: String, abi: String) {
         android.util.Log.i("YYBDL", "start $pkg $version $url")
-        DownloadBus.publish(DownloadState(pkg, Phase.RUNNING))
+        DownloadBus.publish(DownloadState(pkg, Phase.RUNNING, version = version, abi = abi))
         var total = -1L
         try {
             val dir = getExternalFilesDir("apk") ?: throw IOException("外部儲存空間不可用")
@@ -83,7 +85,7 @@ class DownloadService : Service() {
 
             downloader.downloadFull(url, md5.ifBlank { null }, part) { done, size ->
                 total = size
-                DownloadBus.publish(DownloadState(pkg, Phase.RUNNING, done, size))
+                DownloadBus.publish(DownloadState(pkg, Phase.RUNNING, done, size, version = version, abi = abi))
                 notifyProgress(name, done, size)
             }
 
@@ -91,12 +93,15 @@ class DownloadService : Service() {
             if (!part.renameTo(target)) throw IOException("無法重新命名下載檔")
 
             android.util.Log.i("YYBDL", "done $pkg bytes=$total")
-            DownloadBus.publish(DownloadState(pkg, Phase.DONE, total, total))
+            DownloadBus.publish(DownloadState(pkg, Phase.DONE, total, total, version = version, abi = abi))
             notifyProgress(name, total, total)
+            if (!AutoInstall.tryInstall(this, pkg, version, abi)) {
+                InstallNotification.post(this, pkg, name, version, abi)
+            }
         } catch (e: Exception) {
             android.util.Log.w("YYBDL", "fail $pkg: ${e.message}", e)
             DownloadBus.publish(
-                DownloadState(pkg, Phase.FAILED, 0, total, e.message ?: e.javaClass.simpleName)
+                DownloadState(pkg, Phase.FAILED, 0, total, e.message ?: e.javaClass.simpleName, version, abi)
             )
             notifyFailure(name, e.message)
         } finally {

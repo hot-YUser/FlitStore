@@ -10,7 +10,9 @@ data class DownloadState(
     val phase: Phase,
     val bytes: Long = 0,
     val total: Long = -1,
-    val error: String? = null
+    val error: String? = null,
+    val version: String? = null,
+    val abi: String? = null
 )
 
 object DownloadBus {

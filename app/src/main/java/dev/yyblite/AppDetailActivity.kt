@@ -1,8 +1,10 @@
 package dev.yyblite
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -19,11 +21,13 @@ import dev.yyblite.data.Abi
 import dev.yyblite.data.LookupResult
 import dev.yyblite.data.StoreApp
 import dev.yyblite.data.StoreClient
+import dev.yyblite.data.VersionOrder
 import dev.yyblite.databinding.ActivityDetailBinding
 import dev.yyblite.download.DownloadBus
 import dev.yyblite.download.DownloadStarter
 import dev.yyblite.download.Phase
 import dev.yyblite.install.InstallHandoff
+import dev.yyblite.ui.AppVisibility
 import dev.yyblite.ui.ThumbCache
 import java.util.concurrent.Executors
 
@@ -49,6 +53,18 @@ class AppDetailActivity : AppCompatActivity() {
     private var installedVersion: String? = null
     private var subscription: AutoCloseable? = null
     private var requestedDownload = false
+
+    private val packageReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val pkg = intent.data?.schemeSpecificPart ?: return
+            if (pkg != app?.pkg) return
+            installedVersion = installedVersionOf(pkg)
+            io.execute {
+                val result = StoreClient.lookup(pkg)
+                runOnUiThread { if (result is LookupResult.Found) render(result.app) }
+            }
+        }
+    }
 
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -84,6 +100,13 @@ class AppDetailActivity : AppCompatActivity() {
             return
         }
 
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addDataScheme("package")
+        }
+        ContextCompat.registerReceiver(this, packageReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+
         io.execute {
             val result = StoreClient.lookup(pkg)
             runOnUiThread {
@@ -102,6 +125,7 @@ class AppDetailActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        AppVisibility.onStart()
         subscription = DownloadBus.subscribe { state ->
             runOnUiThread { if (state.pkg == app?.pkg) refreshAction() }
         }
@@ -109,12 +133,14 @@ class AppDetailActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
+        AppVisibility.onStop()
         subscription?.close()
         subscription = null
         super.onStop()
     }
 
     override fun onDestroy() {
+        runCatching { unregisterReceiver(packageReceiver) }
         io.shutdownNow()
         super.onDestroy()
     }
@@ -207,6 +233,12 @@ class AppDetailActivity : AppCompatActivity() {
 
     private fun refreshAction() {
         val store = app ?: return
+        if (isUpToDate(store)) {
+            binding.action.text = getString(R.string.action_latest)
+            binding.action.isEnabled = false
+            binding.status.text = ""
+            return
+        }
         val phase = phaseOf(store)
         binding.action.text = when (phase) {
             Phase.RUNNING -> {
@@ -229,6 +261,18 @@ class AppDetailActivity : AppCompatActivity() {
             Phase.DONE -> getString(R.string.detail_downloaded)
             else -> ""
         }
+    }
+
+    private fun isUpToDate(store: StoreApp): Boolean {
+        val installed = installedVersion ?: return false
+        return VersionOrder.compare(store.versionName, installed) <= 0
+    }
+
+    private fun installedVersionOf(pkg: String): String? = try {
+        @Suppress("DEPRECATION")
+        packageManager.getPackageInfo(pkg, 0).versionName
+    } catch (_: PackageManager.NameNotFoundException) {
+        null
     }
 
     private fun phaseOf(store: StoreApp): Phase? {
