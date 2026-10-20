@@ -28,6 +28,7 @@ import dev.yyblite.data.InstalledScanner
 import dev.yyblite.data.LookupResult
 import dev.yyblite.data.StoreApp
 import dev.yyblite.data.StoreClient
+import dev.yyblite.data.UpdateCache
 import dev.yyblite.data.UpdateChecker
 import dev.yyblite.data.UpdateDecision
 import dev.yyblite.data.VersionOrder
@@ -63,6 +64,7 @@ class MainActivity : AppCompatActivity() {
     private var updateRows: List<RowItem> = emptyList()
     private var searchRows: List<RowItem> = emptyList()
     private var searchQuery: String = ""
+    private lateinit var cache: UpdateCache
     private var subscription: AutoCloseable? = null
     private val pendingDownloads = ArrayList<StoreApp>()
 
@@ -93,6 +95,7 @@ class MainActivity : AppCompatActivity() {
         binding.list.layoutManager = LinearLayoutManager(this)
         binding.list.adapter = adapter
 
+        cache = UpdateCache(this)
         binding.updateAll.setOnClickListener { updateAll() }
         binding.updateAll.isEnabled = false
 
@@ -132,7 +135,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         R.id.action_refresh -> {
-            refresh()
+            refresh(force = true)
             true
         }
         else -> super.onOptionsItemSelected(item)
@@ -188,7 +191,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun refresh() {
+    private fun refresh(force: Boolean = false) {
         if (busy) return
         busy = true
         searchQuery = ""
@@ -211,25 +214,61 @@ class MainActivity : AppCompatActivity() {
                 return@execute
             }
 
+            // 先用上次結果立刻出畫面（原版同樣以快取先顯示）。
+            val cached = cache.load()
+            val cachedRows = installed.mapNotNull { app ->
+                val store = cached[app.pkg] ?: return@mapNotNull null
+                if (UpdateDecision.needsUpdate(store, app.versionName, app.versionCode)) {
+                    RowItem(store, app.versionName, true, cached = true)
+                } else {
+                    null
+                }
+            }.sortedBy { it.store.name.lowercase() }
+
+            val fingerprint = cache.fingerprint(installed)
+            val fresh = !force && cached.isNotEmpty() && cache.isFresh(fingerprint)
+
+            runOnUiThread {
+                updateRows = cachedRows
+                if (searchQuery.isEmpty()) showRows(cachedRows)
+                setStatus(updateStatus())
+                if (fresh) {
+                    android.util.Log.i("YYBLite", "cache hit: ${cachedRows.size} rows, skip network")
+                    setProgress(false)
+                    busy = false
+                }
+            }
+            if (fresh) return@execute
+
             val total = installed.size
             val done = AtomicInteger(0)
             val found = Collections.synchronizedList(ArrayList<RowItem>())
             val failed = Collections.synchronizedList(ArrayList<RowItem>())
+            val successes = Collections.synchronizedList(ArrayList<StoreApp>())
+            val removed = Collections.synchronizedList(ArrayList<String>())
 
             checker.check(
                 installed,
                 { app, result ->
                     when (result) {
                         is LookupResult.Found -> {
+                            successes.add(result.app)
                             if (UpdateDecision.needsUpdate(result.app, app.versionName, app.versionCode)) {
                                 found.add(RowItem(result.app, app.versionName, true))
                             }
                         }
                         is LookupResult.Failed -> {
                             android.util.Log.w("YYBLite", "${app.pkg}: ${result.reason}")
-                            failed.add(RowItem(placeholder(app), app.versionName, false, true))
+                            val stale = cached[app.pkg]
+                            if (stale != null &&
+                                UpdateDecision.needsUpdate(stale, app.versionName, app.versionCode)
+                            ) {
+                                found.add(RowItem(stale, app.versionName, true, cached = true))
+                            } else {
+                                failed.add(RowItem(placeholder(app), app.versionName, false, true))
+                            }
                         }
-                        LookupResult.NotInStore -> Unit
+                        LookupResult.NotInStore -> removed.add(app.pkg)
                     }
                     val checked = done.incrementAndGet()
                     runOnUiThread {
@@ -239,7 +278,17 @@ class MainActivity : AppCompatActivity() {
                     }
                 },
                 {
+                    val merged = HashMap(cached)
+                    successes.forEach { merged[it.pkg] = it }
+                    removed.forEach { merged.remove(it) }
+                    cache.save(merged.values)
+                    cache.markChecked(fingerprint)
+
                     val rows = (found + failed).sortedBy { it.store.name.lowercase() }
+                    android.util.Log.i(
+                        "YYBLite",
+                        "check done: ${installed.size} apps, ${rows.size} rows, ${failed.size} failed"
+                    )
                     runOnUiThread {
                         updateRows = rows
                         if (searchQuery.isEmpty()) showRows(rows)
@@ -353,6 +402,11 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                     else -> null
+                }
+                when (result) {
+                    is LookupResult.Found -> cache.put(result.app)
+                    LookupResult.NotInStore -> cache.remove(pkg)
+                    is LookupResult.Failed -> Unit
                 }
                 if (next == null) DownloadBus.clear(pkg)
                 replaceRow(pkg, next)

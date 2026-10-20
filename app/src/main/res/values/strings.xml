@@ -17,6 +17,7 @@
     <string name="row_store_only">商店版本 %1$s</string>
     <string name="row_not_installed">未安裝 · 商店版本 %1$s</string>
     <string name="row_check_failed">檢查失敗</string>
+    <string name="row_cached_suffix">%1$s · 快取</string>
     <string name="action_update">更新</string>
     <string name="action_download">下載</string>
     <string name="action_install">安裝</string>

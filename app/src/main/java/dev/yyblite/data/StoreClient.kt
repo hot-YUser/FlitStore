@@ -6,6 +6,7 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.util.zip.GZIPInputStream
 
 /**
  * 應用寶公開網頁端點客戶端。僅用 java.net + org.json，可在 JVM 單測中直接執行。
@@ -29,8 +30,8 @@ object StoreClient {
     fun lookup(pkg: String): LookupResult {
         if (pkg.isBlank()) return LookupResult.Failed("包名為空")
         return try {
-            val html = fetch(LOOKUP_URL + encode(pkg))
-            val detail = findAppDetail(html, pkg) ?: return LookupResult.NotInStore
+            val detail = fetchLookupDetail(LOOKUP_URL + encode(pkg), pkg)
+                ?: return LookupResult.NotInStore
             val app = fromLookup(detail, pkg) ?: return LookupResult.Failed("欄位缺失")
             LookupResult.Found(app)
         } catch (e: Exception) {
@@ -71,20 +72,48 @@ object StoreClient {
         }
     }
 
-    /** 頁面可能在 JS bundle 內出現同名樣板，逐一嘗試直到取得目標包名的 appDetail。 */
-    private fun findAppDetail(html: String, pkg: String): JSONObject? {
-        var from = 0
-        while (true) {
-            val at = html.indexOf(MARKER, from)
-            if (at < 0) return null
-            val start = at + MARKER.length - 1
-            val json = balancedObject(html, start)
-            from = at + 1
-            if (json == null) continue
-            val detail = runCatching {
-                JSONObject(json).optJSONObject("appDetail")
-            }.getOrNull() ?: continue
-            if (detail.optString("packageName") == pkg) return detail
+    /**
+     * 邊讀邊找：`window.systemData` 約在第 50KB，找到完整 JSON 即斷線，
+     * 不必下載整頁 364KB。找不到才讀到 EOF（未收錄頁面）。
+     */
+    private fun fetchLookupDetail(url: String, pkg: String): JSONObject? {
+        val conn = URL(url).openConnection() as HttpURLConnection
+        try {
+            conn.instanceFollowRedirects = true
+            conn.connectTimeout = CONNECT_TIMEOUT_MS
+            conn.readTimeout = READ_TIMEOUT_MS
+            conn.requestMethod = "GET"
+            conn.setRequestProperty("User-Agent", UA)
+            conn.setRequestProperty("Accept-Language", "zh-CN,zh;q=0.9")
+            conn.setRequestProperty("Accept-Encoding", "gzip")
+            val code = conn.responseCode
+            if (code !in 200..299) throw IOException("HTTP $code")
+
+            val gzip = conn.contentEncoding?.contains("gzip", ignoreCase = true) == true
+            val stream = if (gzip) GZIPInputStream(conn.inputStream) else conn.inputStream
+            stream.bufferedReader(Charsets.UTF_8).use { reader ->
+                val sb = StringBuilder(128 * 1024)
+                val buffer = CharArray(8 * 1024)
+                while (true) {
+                    val read = reader.read(buffer)
+                    if (read < 0) break
+                    sb.append(buffer, 0, read)
+                    val at = sb.indexOf(MARKER)
+                    if (at >= 0) {
+                        val json = balancedObject(sb, at + MARKER.length - 1)
+                        if (json != null) {
+                            val detail = runCatching {
+                                JSONObject(json).optJSONObject("appDetail")
+                            }.getOrNull()
+                            if (detail != null && detail.optString("packageName") == pkg) return detail
+                        }
+                    }
+                    if (sb.length > 2_000_000) break
+                }
+            }
+            return null
+        } finally {
+            conn.disconnect()
         }
     }
 
@@ -168,16 +197,20 @@ object StoreClient {
             conn.setRequestProperty("User-Agent", UA)
             conn.setRequestProperty("Accept-Language", "zh-CN,zh;q=0.9")
             conn.setRequestProperty("Accept", "text/html,application/json;q=0.9,*/*;q=0.8")
+            conn.setRequestProperty("Accept-Encoding", "gzip")
             val code = conn.responseCode
             if (code !in 200..299) throw IOException("HTTP $code")
-            return conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            val gzip = conn.contentEncoding?.contains("gzip", ignoreCase = true) == true
+            val stream = if (gzip) GZIPInputStream(conn.inputStream) else conn.inputStream
+            return stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
         } finally {
             conn.disconnect()
         }
     }
 
     /** 從 `{` 起取出平衡的大括號物件；字串內的括號與轉義皆跳過。 */
-    private fun balancedObject(text: String, start: Int): String? {
+    private fun balancedObject(text: CharSequence, start: Int): String? {
+        if (start < 0 || start >= text.length) return null
         var depth = 0
         var inString = false
         var escaped = false
@@ -195,7 +228,7 @@ object StoreClient {
                     '{' -> depth++
                     '}' -> {
                         depth--
-                        if (depth == 0) return text.substring(start, i + 1)
+                        if (depth == 0) return text.subSequence(start, i + 1).toString()
                     }
                 }
             }

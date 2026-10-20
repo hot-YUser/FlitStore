@@ -15,7 +15,8 @@ data class RowItem(
     val store: StoreApp,
     val installedVersion: String?,
     val hasUpdate: Boolean,
-    val checkFailed: Boolean = false
+    val checkFailed: Boolean = false,
+    val cached: Boolean = false
 )
 
 class AppAdapter(
@@ -48,13 +49,18 @@ class AppAdapter(
             val ctx = binding.root.context
             binding.name.text = item.store.name
 
-            binding.subtitle.text = when {
+            val subtitle = when {
                 item.checkFailed -> ctx.getString(R.string.row_check_failed)
                 item.installedVersion == null ->
                     ctx.getString(R.string.row_not_installed, item.store.versionName)
                 item.hasUpdate ->
                     ctx.getString(R.string.row_local, item.installedVersion, item.store.versionName)
                 else -> ctx.getString(R.string.row_store_only, item.store.versionName)
+            }
+            binding.subtitle.text = if (item.cached) {
+                ctx.getString(R.string.row_cached_suffix, subtitle)
+            } else {
+                subtitle
             }
 
             ThumbCache.load(item.store.iconUrl, binding.icon)
@@ -89,6 +95,7 @@ class AppAdapter(
                 oldItem.installedVersion == newItem.installedVersion &&
                     oldItem.hasUpdate == newItem.hasUpdate &&
                     oldItem.checkFailed == newItem.checkFailed &&
+                    oldItem.cached == newItem.cached &&
                     oldItem.store.versionName == newItem.store.versionName &&
                     oldItem.store.iconUrl == newItem.store.iconUrl
         }

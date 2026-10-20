@@ -25,11 +25,15 @@ class UpdateChecker(private val threads: Int = 4) {
         for (app in apps) {
             pool.execute {
                 try {
-                    val result = StoreClient.lookup(app.pkg)
+                    var result = StoreClient.lookup(app.pkg)
+                    if (result is LookupResult.Failed) {
+                        Thread.sleep(400)
+                        result = StoreClient.lookup(app.pkg)
+                    }
                     runCatching { onResult(app, result) }
                 } finally {
                     try {
-                        Thread.sleep(200)
+                        Thread.sleep(120)
                     } catch (_: InterruptedException) {
                         Thread.currentThread().interrupt()
                     }
