@@ -1,5 +1,6 @@
 package dev.yyblite.data
 
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -9,8 +10,8 @@ import java.net.URLEncoder
 /**
  * 應用寶公開網頁端點客戶端。僅用 java.net + org.json，可在 JVM 單測中直接執行。
  *
- * 兩個外部契約：
- * - simple.jsp 內 `window.systemData` 的 `appDetail`
+ * 外部契約：
+ * - simple.jsp 內 `window.systemData` 的 `appDetail`（含 apkUrl / apkUrl64 / fileSize）
  * - sj.qq.com/search 內 `__NEXT_DATA__` 的 `components[*].data.itemData[*]`
  */
 object StoreClient {
@@ -20,6 +21,7 @@ object StoreClient {
     private const val SEARCH_URL = "https://sj.qq.com/search?q="
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 20_000
+    private const val MARKER = "window.systemData={"
 
     private val NEXT_DATA_RE =
         Regex("<script id=\"__NEXT_DATA__\"[^>]*>(.*?)</script>", RegexOption.DOT_MATCHES_ALL)
@@ -28,10 +30,7 @@ object StoreClient {
         if (pkg.isBlank()) return LookupResult.Failed("包名為空")
         return try {
             val html = fetch(LOOKUP_URL + encode(pkg))
-            val json = balancedJson(html) ?: return LookupResult.NotInStore
-            val root = JSONObject(json)
-            val detail = root.optJSONObject("appDetail") ?: return LookupResult.NotInStore
-            if (detail.optString("packageName") != pkg) return LookupResult.NotInStore
+            val detail = findAppDetail(html, pkg) ?: return LookupResult.NotInStore
             val app = fromLookup(detail, pkg) ?: return LookupResult.Failed("欄位缺失")
             LookupResult.Found(app)
         } catch (e: Exception) {
@@ -72,20 +71,49 @@ object StoreClient {
         }
     }
 
+    /** 頁面可能在 JS bundle 內出現同名樣板，逐一嘗試直到取得目標包名的 appDetail。 */
+    private fun findAppDetail(html: String, pkg: String): JSONObject? {
+        var from = 0
+        while (true) {
+            val at = html.indexOf(MARKER, from)
+            if (at < 0) return null
+            val start = at + MARKER.length - 1
+            val json = balancedObject(html, start)
+            from = at + 1
+            if (json == null) continue
+            val detail = runCatching {
+                JSONObject(json).optJSONObject("appDetail")
+            }.getOrNull() ?: continue
+            if (detail.optString("packageName") == pkg) return detail
+        }
+    }
+
     private fun fromLookup(detail: JSONObject, pkg: String): StoreApp? {
         val version = detail.optString("versionName")
         val url = https(detail.optString("apkUrl"))
         val md5 = detail.optString("apkMd5").trim()
         if (version.isBlank() || url.isBlank() || md5.isBlank()) return null
+
+        val fileSize = detail.optJSONObject("fileSize")
+        val downCount = detail.optJSONObject("downCount")
+        val rating = detail.optJSONObject("rating")
+
         return StoreApp(
             pkg = pkg,
             name = detail.optString("appName").ifBlank { pkg },
             versionName = version,
+            versionCode = detail.optString("versionCode").takeIf { it.isNotBlank() },
             apkUrl = url,
+            apkUrl64 = https(detail.optString("apkUrl64")).ifBlank { null },
             apkMd5 = md5,
-            sizeBytes = -1,
+            sizeBytes = fileSize?.optString("bytes")?.toLongOrNull() ?: -1,
+            sizeDesc = fileSize?.optString("desc")?.takeIf { it.isNotBlank() },
             iconUrl = https(detail.optString("iconUrl")).ifBlank { null },
-            developer = detail.optString("developer").ifBlank { detail.optString("author") }.ifBlank { null }
+            developer = detail.optString("developer").ifBlank { detail.optString("author") }.ifBlank { null },
+            downloadDesc = downCount?.optString("desc")?.takeIf { it.isNotBlank() },
+            rating = rating?.optDouble("averageRating")?.takeIf { !it.isNaN() && it > 0 },
+            screenshots = strings(detail.optJSONArray("snapshots"), 5),
+            editorIntro = detail.optString("editorIntro").takeIf { it.isNotBlank() }
         )
     }
 
@@ -98,12 +126,29 @@ object StoreClient {
             pkg = pkg,
             name = item.optString("name").ifBlank { pkg },
             versionName = version,
+            versionCode = null,
             apkUrl = url,
+            apkUrl64 = null,
             apkMd5 = item.optString("md_5").trim(),
             sizeBytes = item.optString("apk_size").toLongOrNull() ?: -1,
+            sizeDesc = null,
             iconUrl = https(item.optString("icon")).ifBlank { null },
-            developer = item.optString("developer").ifBlank { null }
+            developer = item.optString("developer").ifBlank { null },
+            downloadDesc = null,
+            rating = null,
+            screenshots = emptyList(),
+            editorIntro = null
         )
+    }
+
+    private fun strings(array: JSONArray?, limit: Int): List<String> {
+        if (array == null) return emptyList()
+        val out = ArrayList<String>(limit)
+        for (i in 0 until minOf(array.length(), limit)) {
+            val value = https(array.optString(i))
+            if (value.isNotBlank()) out.add(value)
+        }
+        return out
     }
 
     private fun https(url: String): String =
@@ -129,17 +174,13 @@ object StoreClient {
         }
     }
 
-    /** 取出 `window.systemData={` 後的平衡大括號 JSON；無此標記回 null。 */
-    private fun balancedJson(html: String): String? {
-        val marker = html.indexOf("window.systemData={")
-        if (marker < 0) return null
-        val start = html.indexOf('{', marker)
-        if (start < 0) return null
+    /** 從 `{` 起取出平衡的大括號物件；字串內的括號與轉義皆跳過。 */
+    private fun balancedObject(text: String, start: Int): String? {
         var depth = 0
         var inString = false
         var escaped = false
-        for (i in start until html.length) {
-            val c = html[i]
+        for (i in start until text.length) {
+            val c = text[i]
             if (inString) {
                 when {
                     escaped -> escaped = false
@@ -152,7 +193,7 @@ object StoreClient {
                     '{' -> depth++
                     '}' -> {
                         depth--
-                        if (depth == 0) return html.substring(start, i + 1)
+                        if (depth == 0) return text.substring(start, i + 1)
                     }
                 }
             }

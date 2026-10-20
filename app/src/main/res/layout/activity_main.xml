@@ -29,11 +29,30 @@
         android:paddingTop="4dp"
         android:paddingBottom="4dp" />
 
-    <TextView
-        android:id="@+id/status"
+    <LinearLayout
+        android:id="@+id/bottom_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="?attr/colorControlHighlight"
-        android:padding="10dp"
-        android:textSize="12sp" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="6dp">
+
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/update_all"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="120dp"
+            android:text="@string/menu_update_all" />
+    </LinearLayout>
 </LinearLayout>

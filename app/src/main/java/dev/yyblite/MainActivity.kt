@@ -25,12 +25,11 @@ import dev.yyblite.data.UpdateChecker
 import dev.yyblite.data.VersionOrder
 import dev.yyblite.databinding.ActivityMainBinding
 import dev.yyblite.download.DownloadBus
-import dev.yyblite.download.DownloadService
+import dev.yyblite.download.DownloadStarter
 import dev.yyblite.download.Phase
 import dev.yyblite.install.InstallHandoff
 import dev.yyblite.ui.AppAdapter
 import dev.yyblite.ui.RowItem
-import java.io.File
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -72,9 +71,12 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         applyWindowInsets()
 
-        adapter = AppAdapter(::onRowAction)
+        adapter = AppAdapter(::onRowAction, ::openDetail)
         binding.list.layoutManager = LinearLayoutManager(this)
         binding.list.adapter = adapter
+
+        binding.updateAll.setOnClickListener { updateAll() }
+        binding.updateAll.isEnabled = false
 
         refresh()
     }
@@ -103,10 +105,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
-        R.id.action_update_all -> {
-            updateAll()
-            true
-        }
         R.id.action_refresh -> {
             refresh()
             true
@@ -137,8 +135,8 @@ class MainActivity : AppCompatActivity() {
     private fun applyWindowInsets() {
         val density = resources.displayMetrics.density
         val baseToolbarHeight = (56 * density).toInt()
-        val statusPaddingTop = binding.status.paddingTop
-        val statusPaddingBottom = binding.status.paddingBottom
+        val barPaddingTop = binding.bottomBar.paddingTop
+        val barPaddingBottom = binding.bottomBar.paddingBottom
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val params = binding.toolbar.layoutParams
@@ -148,11 +146,11 @@ class MainActivity : AppCompatActivity() {
                 binding.toolbar.layoutParams = params
             }
             binding.toolbar.setPadding(0, bars.top, 0, 0)
-            binding.status.setPadding(
-                binding.status.paddingLeft,
-                statusPaddingTop,
-                binding.status.paddingRight,
-                statusPaddingBottom + bars.bottom
+            binding.bottomBar.setPadding(
+                binding.bottomBar.paddingLeft,
+                barPaddingTop,
+                binding.bottomBar.paddingRight,
+                barPaddingBottom + bars.bottom
             )
             insets
         }
@@ -258,7 +256,7 @@ class MainActivity : AppCompatActivity() {
         }
         when (DownloadBus.snapshot()[item.store.pkg]?.phase) {
             Phase.DONE -> {
-                val file = apkFile(item.store)
+                val file = DownloadStarter.apkFile(this, item.store)
                 if (file.exists()) InstallHandoff.install(this, file) else startDownload(item.store)
             }
             Phase.RUNNING, Phase.QUEUED -> Unit
@@ -314,7 +312,19 @@ class MainActivity : AppCompatActivity() {
         targets.forEach { startDownload(it.store) }
     }
 
+    /** 搜尋結果只帶單一連結；下載前補一次詳情查詢以取得 64 位連結與精確大小。 */
     private fun startDownload(app: StoreApp) {
+        if (app.apkUrl64 != null) {
+            requestOrStart(app)
+            return
+        }
+        io.execute {
+            val enriched = (StoreClient.lookup(app.pkg) as? LookupResult.Found)?.app ?: app
+            runOnUiThread { requestOrStart(enriched) }
+        }
+    }
+
+    private fun requestOrStart(app: StoreApp) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
@@ -327,21 +337,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startDownloadNow(app: StoreApp) {
-        ContextCompat.startForegroundService(this, DownloadService.intent(this, app))
+        DownloadStarter.start(this, app)
     }
 
-    private fun apkFile(app: StoreApp): File =
-        File(getExternalFilesDir("apk"), "${app.pkg}_${app.versionName}.apk")
+    private fun openDetail(item: RowItem) {
+        startActivity(AppDetailActivity.intent(this, item.store, item.installedVersion))
+    }
 
     private fun placeholder(app: InstalledApp): StoreApp = StoreApp(
         pkg = app.pkg,
         name = app.label,
         versionName = "",
+        versionCode = null,
         apkUrl = "",
+        apkUrl64 = null,
         apkMd5 = "",
         sizeBytes = -1,
+        sizeDesc = null,
         iconUrl = null,
-        developer = null
+        developer = null,
+        downloadDesc = null,
+        rating = null,
+        screenshots = emptyList(),
+        editorIntro = null
     )
 
     private fun updateStatus(): String {
@@ -356,6 +374,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showRows(rows: List<RowItem>) {
         adapter.submitList(rows)
+        binding.updateAll.isEnabled = searchQuery.isEmpty() && updateRows.any { it.hasUpdate }
     }
 
     private fun setProgress(visible: Boolean) {

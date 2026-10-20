@@ -16,7 +16,8 @@ class SegmentDownloaderTest {
     fun rangeAssembly() {
         val result = StoreClient.lookup("com.tencent.mm")
         if (result !is LookupResult.Found) fail("lookup 失敗：$result")
-        val url = (result as LookupResult.Found).app.apkUrl
+        val app = (result as LookupResult.Found).app
+        val url = app.apkUrl64 ?: app.apkUrl
         val length = 4L * 1024 * 1024
         val temp = File.createTempFile("seg", ".bin")
         try {

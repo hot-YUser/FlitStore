@@ -17,6 +17,8 @@ class StoreClientTest {
         assertEquals("com.tencent.mm", app.pkg)
         assertTrue(app.apkUrl.startsWith("https://"))
         assertTrue(app.apkUrl.contains(app.apkMd5))
+        assertTrue("應提供 64 位連結", app.apkUrl64?.startsWith("https://") == true)
+        assertTrue("應帶檔案大小", app.sizeBytes > 0)
         assertTrue(Regex("[0-9A-Fa-f]{32}").matches(app.apkMd5))
         assertFalse(app.versionName.isBlank())
     }

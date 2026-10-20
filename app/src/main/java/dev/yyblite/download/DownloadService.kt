@@ -29,14 +29,16 @@ class DownloadService : Service() {
         private const val EXTRA_VERSION = "version"
         private const val EXTRA_URL = "url"
         private const val EXTRA_MD5 = "md5"
+        private const val EXTRA_ABI = "abi"
 
-        fun intent(ctx: Context, app: StoreApp): Intent =
+        fun intent(ctx: Context, app: StoreApp, url: String, abi: String, md5: String): Intent =
             Intent(ctx, DownloadService::class.java)
                 .putExtra(EXTRA_PKG, app.pkg)
                 .putExtra(EXTRA_NAME, app.name)
                 .putExtra(EXTRA_VERSION, app.versionName)
-                .putExtra(EXTRA_URL, app.apkUrl)
-                .putExtra(EXTRA_MD5, app.apkMd5)
+                .putExtra(EXTRA_URL, url)
+                .putExtra(EXTRA_MD5, md5)
+                .putExtra(EXTRA_ABI, abi)
     }
 
     private val active = AtomicInteger(0)
@@ -58,16 +60,17 @@ class DownloadService : Service() {
         val version = intent.getStringExtra(EXTRA_VERSION) ?: "0"
         val url = intent.getStringExtra(EXTRA_URL) ?: return START_NOT_STICKY
         val md5 = intent.getStringExtra(EXTRA_MD5) ?: ""
+        val abi = intent.getStringExtra(EXTRA_ABI) ?: "v7a"
 
         active.incrementAndGet()
         startForegroundCompat(buildNotification(getString(R.string.notification_title), name, 0, -1))
         DownloadBus.publish(DownloadState(pkg, Phase.QUEUED))
 
-        DownloadQueue.submit { runDownload(pkg, name, version, url, md5) }
+        DownloadQueue.submit { runDownload(pkg, name, version, url, md5, abi) }
         return START_NOT_STICKY
     }
 
-    private fun runDownload(pkg: String, name: String, version: String, url: String, md5: String) {
+    private fun runDownload(pkg: String, name: String, version: String, url: String, md5: String, abi: String) {
         android.util.Log.i("YYBDL", "start $pkg $version $url")
         DownloadBus.publish(DownloadState(pkg, Phase.RUNNING))
         var total = -1L
@@ -75,7 +78,7 @@ class DownloadService : Service() {
             val dir = getExternalFilesDir("apk") ?: throw IOException("外部儲存空間不可用")
             if (!dir.exists() && !dir.mkdirs()) throw IOException("無法建立下載目錄")
 
-            val target = File(dir, "${pkg}_${version}.apk")
+            val target = File(dir, "${pkg}_${version}_${abi}.apk")
             val part = File(dir, target.name + ".part")
 
             downloader.downloadFull(url, md5.ifBlank { null }, part) { done, size ->

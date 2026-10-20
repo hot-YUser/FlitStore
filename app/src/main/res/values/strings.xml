@@ -26,4 +26,14 @@
     <string name="installer_missing">找不到可用的安裝器</string>
     <string name="notification_channel">下載</string>
     <string name="notification_title">正在下載</string>
+    <string name="detail_title">應用詳情</string>
+    <string name="detail_loading">讀取詳情…</string>
+    <string name="detail_failed">讀取失敗：%1$s</string>
+    <string name="detail_not_in_store">商店未收錄此應用</string>
+    <string name="detail_versions">本地 %1$s · 商店 %2$s</string>
+    <string name="detail_versions_new">尚未安裝 · 商店 %1$s</string>
+    <string name="detail_size">大小 %1$s</string>
+    <string name="detail_abi64">架構 arm64-v8a（64 位）</string>
+    <string name="detail_abi32">架構 armeabi-v7a（32 位）</string>
+    <string name="detail_downloaded">已下載完成，可安裝</string>
 </resources>

@@ -10,8 +10,13 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
+import dev.yyblite.data.Cdn
 
+/** CDN 要求先通過 EdgeOne JS 驗證或直接限流。 */
 class ThrottledException(message: String) : IOException(message)
+
+/** CDN 不理會 Range，只能單連線下載。 */
+class RangeUnsupportedException(message: String) : IOException(message)
 
 /**
  * 以 HTTP Range 多段並行下載單一檔案。
@@ -23,12 +28,17 @@ class SegmentDownloader(private val segments: Int = 32) {
         val conn = open(url, range = "bytes=0-0")
         try {
             val code = conn.responseCode
-            if (code != 206) throw IOException("不支援分段下載（HTTP $code）")
-            val contentRange = conn.getHeaderField("Content-Range")
-                ?: throw IOException("缺少 Content-Range")
-            val total = contentRange.substringAfterLast('/').trim().toLongOrNull() ?: -1
-            if (total <= 0) throw IOException("無法取得檔案大小")
-            return total
+            if (code == 206) {
+                val contentRange = conn.getHeaderField("Content-Range")
+                    ?: throw IOException("缺少 Content-Range")
+                val total = contentRange.substringAfterLast('/').trim().toLongOrNull() ?: -1
+                if (total <= 0) throw IOException("無法取得檔案大小")
+                return total
+            }
+            if (isChallenge(conn, code)) throw ThrottledException("CDN 驗證頁（HTTP $code）")
+            if (code in 200..299) throw RangeUnsupportedException("CDN 忽略 Range（HTTP $code）")
+            if (code == 403 || code == 429) throw ThrottledException("HTTP $code")
+            throw IOException("HTTP $code")
         } finally {
             conn.disconnect()
         }
@@ -74,13 +84,18 @@ class SegmentDownloader(private val segments: Int = 32) {
         }
         workers.forEach { it.join() }
 
-        if (failure.get() != null) {
+        val cause = failure.get()
+        if (cause is RangeUnsupportedException) {
             dest.delete()
-            throw IOException(failure.get()!!.message ?: "下載失敗", failure.get())
+            throw cause
+        }
+        if (cause != null) {
+            dest.delete()
+            throw IOException(cause.message ?: "下載失敗", cause)
         }
         if (throttleHits.get() >= 3) {
             dest.delete()
-            throw ThrottledException("CDN 限流（$throttleHits 次）")
+            throw ThrottledException("CDN 限流（${throttleHits.get()} 次）")
         }
         if (written.get() != length) throw IOException("位元組數不符 ${written.get()}/$length")
         return dest
@@ -92,20 +107,30 @@ class SegmentDownloader(private val segments: Int = 32) {
         dest: File,
         onProgress: (done: Long, total: Long) -> Unit = { _, _ -> }
     ): File {
-        val total = try {
-            totalSize(url)
-        } catch (e: IOException) {
-            // Range 探測失敗（CDN 回 200 或限流）→ 直接走單連線。
-            dest.parentFile?.mkdirs()
+        var throttled: ThrottledException? = null
+        for (candidate in Cdn.candidates(url)) {
             try {
-                return downloadSequential(url, expectedMd5, dest, onProgress)
-            } catch (fallback: IOException) {
-                dest.delete()
-                throw fallback
+                return downloadFrom(candidate, expectedMd5, dest, onProgress)
+            } catch (e: ThrottledException) {
+                throttled = e
             }
         }
+        throw throttled ?: ThrottledException("商店 CDN 暫時阻擋，請稍後重試")
+    }
+
+    private fun downloadFrom(
+        url: String,
+        expectedMd5: String?,
+        dest: File,
+        onProgress: (done: Long, total: Long) -> Unit
+    ): File {
         dest.parentFile?.mkdirs()
-        var lastError: IOException? = null
+        val total = try {
+            probe(url)
+        } catch (e: RangeUnsupportedException) {
+            return sequential(url, expectedMd5, dest, onProgress)
+        }
+
         for (attempt in intArrayOf(this.segments, 8)) {
             try {
                 dest.delete()
@@ -113,23 +138,35 @@ class SegmentDownloader(private val segments: Int = 32) {
                 downloadRange(url, 0, total - 1, dest, attempt, onProgress)
                 verifyMd5(dest, expectedMd5)
                 return dest
+            } catch (e: RangeUnsupportedException) {
+                return sequential(url, expectedMd5, dest, onProgress)
             } catch (e: ThrottledException) {
-                lastError = e
+                Thread.sleep(1000)
             } catch (e: IOException) {
                 dest.delete()
                 throw e
             }
         }
-        try {
-            return downloadSequential(url, expectedMd5, dest, onProgress)
-        } catch (e: IOException) {
-            dest.delete()
-            throw e
+        return sequential(url, expectedMd5, dest, onProgress)
+    }
+
+    private fun probe(url: String): Long {
+        var attempt = 0
+        while (true) {
+            attempt++
+            try {
+                return totalSize(url)
+            } catch (e: RangeUnsupportedException) {
+                throw e
+            } catch (e: ThrottledException) {
+                if (attempt >= 3) throw ThrottledException("商店 CDN 暫時阻擋，請稍後重試")
+                Thread.sleep(700L * attempt)
+            }
         }
     }
 
     /** 多段被 CDN 拒絕時的最後手段：單連線循序下載（無 Range）。 */
-    private fun downloadSequential(
+    private fun sequential(
         url: String,
         expectedMd5: String?,
         dest: File,
@@ -141,21 +178,16 @@ class SegmentDownloader(private val segments: Int = 32) {
             dest.delete()
             dest.parentFile?.mkdirs()
             try {
-                return downloadSequentialOnce(url, expectedMd5, dest, onProgress)
+                return sequentialOnce(url, expectedMd5, dest, onProgress)
             } catch (e: IOException) {
                 dest.delete()
                 if (attempt >= 3) throw e
-                try {
-                    Thread.sleep(1000L * attempt)
-                } catch (interrupted: InterruptedException) {
-                    Thread.currentThread().interrupt()
-                    throw e
-                }
+                Thread.sleep(1000L * attempt)
             }
         }
     }
 
-    private fun downloadSequentialOnce(
+    private fun sequentialOnce(
         url: String,
         expectedMd5: String?,
         dest: File,
@@ -164,6 +196,7 @@ class SegmentDownloader(private val segments: Int = 32) {
         val conn = open(url)
         try {
             val code = conn.responseCode
+            if (isChallenge(conn, code)) throw ThrottledException("CDN 驗證頁")
             if (code !in 200..299) throw IOException("HTTP $code")
             val total = conn.contentLengthLong
             var done = 0L
@@ -213,11 +246,15 @@ class SegmentDownloader(private val segments: Int = 32) {
             try {
                 conn = open(url, range = "bytes=$start-$end")
                 val code = conn.responseCode
-                if (code == 403 || code == 429 || code == 200) {
+                if (isChallenge(conn, code)) {
                     throttleHits.incrementAndGet()
-                    throw ThrottledException("HTTP $code（Range 未生效或被限流）")
+                    throw ThrottledException("CDN 驗證頁（HTTP $code）")
                 }
-                if (code != 206) throw IOException("HTTP $code")
+                if (code == 403 || code == 429) {
+                    throttleHits.incrementAndGet()
+                    throw ThrottledException("HTTP $code")
+                }
+                if (code != 206) throw RangeUnsupportedException("CDN 忽略 Range（HTTP $code）")
 
                 RandomAccessFile(dest, "rw").use { raf ->
                     raf.seek(start)
@@ -242,6 +279,8 @@ class SegmentDownloader(private val segments: Int = 32) {
                 }
                 return
             } catch (e: ThrottledException) {
+                throw e
+            } catch (e: RangeUnsupportedException) {
                 throw e
             } catch (e: IOException) {
                 written.addAndGet(-produced)
@@ -273,6 +312,9 @@ class SegmentDownloader(private val segments: Int = 32) {
         return conn
     }
 
+    private fun isChallenge(conn: HttpURLConnection, code: Int): Boolean =
+        code in 200..299 && conn.contentType?.contains("text/html", ignoreCase = true) == true
+
     private fun verifyMd5(file: File, expected: String?) {
         if (expected.isNullOrBlank()) return
         val digest = MessageDigest.getInstance("MD5")
@@ -292,7 +334,7 @@ class SegmentDownloader(private val segments: Int = 32) {
     }
 
     private companion object {
-        const val UA =
-            "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36"
+        // 不可使用瀏覽器 UA：Tencent EdgeOne 會對類瀏覽器流量下發 JS 驗證頁。
+        const val UA = "AndroidDownloadManager"
     }
 }

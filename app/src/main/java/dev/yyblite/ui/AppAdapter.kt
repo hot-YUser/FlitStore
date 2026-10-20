@@ -18,7 +18,10 @@ data class RowItem(
     val checkFailed: Boolean = false
 )
 
-class AppAdapter(private val onAction: (RowItem) -> Unit) :
+class AppAdapter(
+    private val onAction: (RowItem) -> Unit,
+    private val onItemClick: (RowItem) -> Unit
+) :
     ListAdapter<RowItem, AppAdapter.Holder>(DIFF) {
 
     private val states = HashMap<String, DownloadState>()
@@ -73,6 +76,7 @@ class AppAdapter(private val onAction: (RowItem) -> Unit) :
             binding.action.text = label
             binding.action.isEnabled = state?.phase != Phase.RUNNING && state?.phase != Phase.QUEUED
             binding.action.setOnClickListener { onAction(item) }
+            binding.root.setOnClickListener { onItemClick(item) }
         }
     }
 
