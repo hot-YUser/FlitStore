@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">YYB Lite</string>
+    <string name="search_hint">搜尋應用</string>
+    <string name="menu_search">搜尋</string>
+    <string name="menu_update_all">全部更新</string>
+    <string name="menu_refresh">重新整理</string>
+    <string name="status_scanning">掃描已安裝應用…</string>
+    <string name="status_checking">檢查中 %1$d/%2$d</string>
+    <string name="status_updates">可更新 %1$d 項</string>
+    <string name="status_updates_with_failures">可更新 %1$d 項 · 檢查失敗 %2$d 項</string>
+    <string name="status_none">已是最新</string>
+    <string name="status_search">搜尋「%1$s」：%2$d 筆</string>
+    <string name="status_search_empty">搜尋「%1$s」：無結果</string>
+    <string name="status_searching">搜尋「%1$s」…</string>
+    <string name="row_local">本地 %1$s → 商店 %2$s</string>
+    <string name="row_store_only">商店版本 %1$s</string>
+    <string name="row_not_installed">未安裝 · 商店版本 %1$s</string>
+    <string name="row_check_failed">檢查失敗</string>
+    <string name="action_update">更新</string>
+    <string name="action_download">下載</string>
+    <string name="action_install">安裝</string>
+    <string name="action_retry">重試</string>
+    <string name="action_downloading">下載中 %1$d%%</string>
+    <string name="action_queued">排隊中</string>
+    <string name="installer_missing">找不到可用的安裝器</string>
+    <string name="notification_channel">下載</string>
+    <string name="notification_title">正在下載</string>
+</resources>
