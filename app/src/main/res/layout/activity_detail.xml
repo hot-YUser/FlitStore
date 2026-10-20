@@ -33,7 +33,7 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingTop="8dp"
-                android:paddingBottom="8dp">
+                android:paddingBottom="4dp">
 
                 <ImageView
                     android:id="@+id/icon"
@@ -58,6 +58,13 @@
                         android:textStyle="bold" />
 
                     <TextView
+                        android:id="@+id/slogan"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textSize="12sp" />
+
+                    <TextView
                         android:id="@+id/developer"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -74,32 +81,30 @@
             </LinearLayout>
 
             <TextView
-                android:id="@+id/versions"
-                android:layout_width="match_parent"
+                android:id="@+id/official"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:paddingTop="8dp"
-                android:paddingBottom="4dp"
-                android:textSize="14sp" />
+                android:layout_marginTop="4dp"
+                android:background="?attr/colorControlHighlight"
+                android:paddingStart="8dp"
+                android:paddingTop="3dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="3dp"
+                android:text="@string/detail_official"
+                android:textSize="11sp"
+                android:visibility="gone" />
 
-            <TextView
-                android:id="@+id/size"
+            <LinearLayout
+                android:id="@+id/info"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingTop="2dp"
-                android:paddingBottom="2dp"
-                android:textSize="14sp" />
-
-            <TextView
-                android:id="@+id/abi"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingTop="2dp"
-                android:paddingBottom="8dp"
-                android:textSize="14sp" />
+                android:orientation="vertical"
+                android:paddingTop="10dp" />
 
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
                 android:scrollbars="none">
 
                 <LinearLayout
@@ -114,21 +119,94 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingTop="12dp"
-                android:paddingBottom="12dp"
+                android:paddingBottom="4dp"
                 android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/reviews_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="12dp"
+                android:text="@string/detail_reviews"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/reviews"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <TextView
+                android:id="@+id/same_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="12dp"
+                android:text="@string/detail_same_developer"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/same"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <TextView
+                android:id="@+id/history_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="12dp"
+                android:text="@string/detail_history"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/history"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/ignore_once"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/ignore_once"
+                    android:textSize="12sp" />
+
+                <Button
+                    android:id="@+id/ignore_forever"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:text="@string/ignore_forever"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/status"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingBottom="8dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="4dp"
                 android:textSize="12sp" />
 
             <Button
                 android:id="@+id/action"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="4dp"
                 android:textSize="16sp" />
         </LinearLayout>
     </ScrollView>

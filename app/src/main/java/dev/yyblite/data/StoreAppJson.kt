@@ -23,6 +23,10 @@ object StoreAppJson {
         put("rating", app.rating ?: JSONObject.NULL)
         put("editorIntro", app.editorIntro ?: JSONObject.NULL)
         put("screenshots", JSONArray(app.screenshots))
+        put("official", app.official)
+        put("icp", app.icp ?: JSONObject.NULL)
+        put("slogan", app.slogan ?: JSONObject.NULL)
+        put("ratingCount", app.ratingCount)
     }
 
     fun decode(json: JSONObject): StoreApp? {
@@ -48,7 +52,11 @@ object StoreAppJson {
             screenshots = json.optJSONArray("screenshots")?.let { array ->
                 (0 until array.length()).map { array.optString(it) }.filter { it.isNotBlank() }
             } ?: emptyList(),
-            editorIntro = json.optString("editorIntro").takeIf { it.isNotBlank() && it != "null" }
+            editorIntro = json.optString("editorIntro").takeIf { it.isNotBlank() && it != "null" },
+            official = json.optBoolean("official", false),
+            icp = json.optString("icp").takeIf { it.isNotBlank() && it != "null" },
+            slogan = json.optString("slogan").takeIf { it.isNotBlank() && it != "null" },
+            ratingCount = json.optLong("ratingCount", 0)
         )
     }
 }

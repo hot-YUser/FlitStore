@@ -10,7 +10,7 @@
         app:showAsAction="always|collapseActionView" />
 
     <item
-        android:id="@+id/action_refresh"
-        android:title="@string/menu_refresh"
+        android:id="@+id/action_ignored"
+        android:title="@string/menu_ignored"
         app:showAsAction="never" />
 </menu>

@@ -34,6 +34,7 @@ class DownloadService : Service() {
         private const val EXTRA_MD5 = "md5"
         private const val EXTRA_ABI = "abi"
         private const val EXTRA_SIGNATURE = "signature"
+        private const val EXTRA_SIZE = "size"
 
         fun intent(
             ctx: Context,
@@ -50,6 +51,7 @@ class DownloadService : Service() {
                 .putExtra(EXTRA_MD5, md5)
                 .putExtra(EXTRA_ABI, abi)
                 .putExtra(EXTRA_SIGNATURE, app.signatureMd5)
+                .putExtra(EXTRA_SIZE, app.sizeBytes)
     }
 
     private val active = AtomicInteger(0)
@@ -73,12 +75,13 @@ class DownloadService : Service() {
         val md5 = intent.getStringExtra(EXTRA_MD5) ?: ""
         val abi = intent.getStringExtra(EXTRA_ABI) ?: "v7a"
         val signature = intent.getStringExtra(EXTRA_SIGNATURE)
+        val sizeHint = intent.getLongExtra(EXTRA_SIZE, -1L)
 
         active.incrementAndGet()
         startForegroundCompat(buildNotification(getString(R.string.notification_title), name, 0, -1))
-        DownloadBus.publish(DownloadState(pkg, Phase.QUEUED, version = version, abi = abi))
+        DownloadBus.publish(DownloadState(pkg, Phase.QUEUED, version = version, abi = abi, sizeHint = sizeHint))
 
-        DownloadQueue.submit { runDownload(pkg, name, version, url, md5, abi, signature) }
+        DownloadQueue.submit { runDownload(pkg, name, version, url, md5, abi, signature, sizeHint) }
         return START_NOT_STICKY
     }
 
@@ -89,10 +92,11 @@ class DownloadService : Service() {
         url: String,
         md5: String,
         abi: String,
-        expectedSignature: String?
+        expectedSignature: String?,
+        sizeHint: Long
     ) {
         android.util.Log.i("YYBDL", "start $pkg $version $url")
-        DownloadBus.publish(DownloadState(pkg, Phase.RUNNING, version = version, abi = abi))
+        DownloadBus.publish(DownloadState(pkg, Phase.RUNNING, version = version, abi = abi, sizeHint = sizeHint))
         var total = -1L
         try {
             val dir = getExternalFilesDir("apk") ?: throw IOException("外部儲存空間不可用")
@@ -101,9 +105,25 @@ class DownloadService : Service() {
             val target = File(dir, "${pkg}_${version}_${abi}.apk")
             val part = File(dir, target.name + ".part")
 
+            var lastBytes = 0L
+            var lastTime = System.currentTimeMillis()
+            var speed = 0.0
             downloader.downloadFull(url, md5.ifBlank { null }, part) { done, size ->
                 total = size
-                DownloadBus.publish(DownloadState(pkg, Phase.RUNNING, done, size, version = version, abi = abi))
+                val now = System.currentTimeMillis()
+                val dt = now - lastTime
+                if (dt >= 300) {
+                    val instant = (done - lastBytes) * 1000.0 / dt
+                    speed = if (speed == 0.0) instant else speed * 0.6 + instant * 0.4
+                    lastBytes = done
+                    lastTime = now
+                }
+                DownloadBus.publish(
+                    DownloadState(
+                        pkg, Phase.RUNNING, done, size,
+                        version = version, abi = abi, speedBps = speed.toLong(), sizeHint = sizeHint
+                    )
+                )
                 notifyProgress(name, done, size)
             }
 
@@ -123,7 +143,9 @@ class DownloadService : Service() {
             }
 
             android.util.Log.i("YYBDL", "done $pkg bytes=$total")
-            DownloadBus.publish(DownloadState(pkg, Phase.DONE, total, total, version = version, abi = abi))
+            DownloadBus.publish(
+                DownloadState(pkg, Phase.DONE, total, total, version = version, abi = abi, sizeHint = sizeHint)
+            )
             notifyProgress(name, total, total)
             if (!AutoInstall.tryInstall(this, pkg, version, abi)) {
                 InstallNotification.post(this, pkg, name, version, abi)
@@ -131,7 +153,10 @@ class DownloadService : Service() {
         } catch (e: Exception) {
             android.util.Log.w("YYBDL", "fail $pkg: ${e.message}", e)
             DownloadBus.publish(
-                DownloadState(pkg, Phase.FAILED, 0, total, e.message ?: e.javaClass.simpleName, version, abi)
+                DownloadState(
+                    pkg, Phase.FAILED, 0, total, e.message ?: e.javaClass.simpleName,
+                    version, abi, 0, sizeHint
+                )
             )
             notifyFailure(name, e.message)
         } finally {

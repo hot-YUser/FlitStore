@@ -23,6 +23,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
+import dev.yyblite.data.IgnoreStore
 import dev.yyblite.data.InstalledApp
 import dev.yyblite.data.InstalledScanner
 import dev.yyblite.data.LookupResult
@@ -31,15 +32,16 @@ import dev.yyblite.data.StoreClient
 import dev.yyblite.data.UpdateCache
 import dev.yyblite.data.UpdateChecker
 import dev.yyblite.data.UpdateDecision
-import dev.yyblite.data.VersionOrder
+import dev.yyblite.data.VersionHistory
 import dev.yyblite.databinding.ActivityMainBinding
 import dev.yyblite.download.DownloadBus
 import dev.yyblite.download.DownloadStarter
 import dev.yyblite.download.Phase
 import dev.yyblite.install.AutoInstall
 import dev.yyblite.install.InstallHandoff
-import dev.yyblite.ui.AppVisibility
 import dev.yyblite.ui.AppAdapter
+import dev.yyblite.ui.AppVisibility
+import dev.yyblite.ui.Format
 import dev.yyblite.ui.RowItem
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
@@ -58,13 +60,16 @@ class MainActivity : AppCompatActivity() {
     private val checker = UpdateChecker(4)
     private val scanLatch = CountDownLatch(1)
 
+    private lateinit var cache: UpdateCache
+    private lateinit var ignoreStore: IgnoreStore
+    private lateinit var history: VersionHistory
+
     @Volatile private var scanned: List<InstalledApp> = emptyList()
     @Volatile private var busy = false
 
     private var updateRows: List<RowItem> = emptyList()
     private var searchRows: List<RowItem> = emptyList()
     private var searchQuery: String = ""
-    private lateinit var cache: UpdateCache
     private var subscription: AutoCloseable? = null
     private val pendingDownloads = ArrayList<StoreApp>()
 
@@ -91,13 +96,17 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         applyWindowInsets()
 
-        adapter = AppAdapter(::onRowAction, ::openDetail)
+        cache = UpdateCache(this)
+        ignoreStore = IgnoreStore(this)
+        history = VersionHistory(this)
+
+        adapter = AppAdapter(::onRowAction, ::openDetail, ::onRowLongClick, ::onSelectionChanged)
         binding.list.layoutManager = LinearLayoutManager(this)
         binding.list.adapter = adapter
 
-        cache = UpdateCache(this)
-        binding.updateAll.setOnClickListener { updateAll() }
-        binding.updateAll.isEnabled = false
+        binding.swipe.setOnRefreshListener { refresh(force = true) }
+        binding.swipe.setColorSchemeResources(R.color.primary)
+        binding.updateAll.setOnClickListener { updateSelectedOrAll() }
 
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_REPLACED)
@@ -134,11 +143,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
-        R.id.action_refresh -> {
-            refresh(force = true)
+        R.id.action_ignored -> {
+            showIgnoredDialog()
             true
         }
         else -> super.onOptionsItemSelected(item)
+    }
+
+    private fun showIgnoredDialog() {
+        val entries = ignoreStore.entries()
+        if (entries.isEmpty()) {
+            Toast.makeText(this, R.string.ignore_empty, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val labels = entries.map {
+            if (it.forever) "${it.pkg}（永久）" else "${it.pkg}（${it.version}）"
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.menu_ignored)
+            .setItems(labels) { _, which ->
+                ignoreStore.clear(entries[which].pkg)
+                reloadRows()
+            }
+            .show()
     }
 
     override fun onStart() {
@@ -148,9 +175,13 @@ class MainActivity : AppCompatActivity() {
             .filter { it.phase == Phase.DONE }
             .forEach { AutoInstall.tryInstall(this, it.pkg, it.version ?: return@forEach, it.abi ?: "v7a") }
         subscription = DownloadBus.subscribe { state ->
-            runOnUiThread { adapter.setState(state) }
+            runOnUiThread {
+                adapter.setState(state)
+                updateGlobalStatus()
+            }
         }
         adapter.restoreStates()
+        updateGlobalStatus()
     }
 
     override fun onStop() {
@@ -195,7 +226,6 @@ class MainActivity : AppCompatActivity() {
         if (busy) return
         busy = true
         searchQuery = ""
-        setProgress(true)
         setStatus(getString(R.string.status_scanning))
 
         io.execute {
@@ -207,24 +237,14 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     updateRows = emptyList()
                     showRows(updateRows)
-                    setProgress(false)
+                    finishRefresh()
                     setStatus(getString(R.string.status_none))
-                    busy = false
                 }
                 return@execute
             }
 
-            // 先用上次結果立刻出畫面（原版同樣以快取先顯示）。
             val cached = cache.load()
-            val cachedRows = installed.mapNotNull { app ->
-                val store = cached[app.pkg] ?: return@mapNotNull null
-                if (UpdateDecision.needsUpdate(store, app.versionName, app.versionCode)) {
-                    RowItem(store, app.versionName, true, cached = true)
-                } else {
-                    null
-                }
-            }.sortedBy { it.store.name.lowercase() }
-
+            val cachedRows = buildRows(installed, cached)
             val fingerprint = cache.fingerprint(installed)
             val fresh = !force && cached.isNotEmpty() && cache.isFresh(fingerprint)
 
@@ -234,8 +254,7 @@ class MainActivity : AppCompatActivity() {
                 setStatus(updateStatus())
                 if (fresh) {
                     android.util.Log.i("YYBLite", "cache hit: ${cachedRows.size} rows, skip network")
-                    setProgress(false)
-                    busy = false
+                    finishRefresh()
                 }
             }
             if (fresh) return@execute
@@ -253,15 +272,18 @@ class MainActivity : AppCompatActivity() {
                     when (result) {
                         is LookupResult.Found -> {
                             successes.add(result.app)
-                            if (UpdateDecision.needsUpdate(result.app, app.versionName, app.versionCode)) {
+                            history.record(result.app.pkg, result.app.versionName)
+                            if (UpdateDecision.needsUpdate(result.app, app.versionName, app.versionCode) &&
+                                !ignoreStore.isIgnored(result.app.pkg, result.app.versionName)
+                            ) {
                                 found.add(RowItem(result.app, app.versionName, true))
                             }
                         }
                         is LookupResult.Failed -> {
-                            android.util.Log.w("YYBLite", "${app.pkg}: ${result.reason}")
                             val stale = cached[app.pkg]
                             if (stale != null &&
-                                UpdateDecision.needsUpdate(stale, app.versionName, app.versionCode)
+                                UpdateDecision.needsUpdate(stale, app.versionName, app.versionCode) &&
+                                !ignoreStore.isIgnored(stale.pkg, stale.versionName)
                             ) {
                                 found.add(RowItem(stale, app.versionName, true, cached = true))
                             } else {
@@ -292,9 +314,8 @@ class MainActivity : AppCompatActivity() {
                     runOnUiThread {
                         updateRows = rows
                         if (searchQuery.isEmpty()) showRows(rows)
-                        setProgress(false)
+                        finishRefresh()
                         setStatus(updateStatus())
-                        busy = false
                         maybeAskOverlay()
                     }
                 }
@@ -302,9 +323,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun buildRows(
+        installed: List<InstalledApp>,
+        cached: Map<String, StoreApp>
+    ): List<RowItem> = installed.mapNotNull { app ->
+        val store = cached[app.pkg] ?: return@mapNotNull null
+        if (!UpdateDecision.needsUpdate(store, app.versionName, app.versionCode)) return@mapNotNull null
+        if (ignoreStore.isIgnored(store.pkg, store.versionName)) return@mapNotNull null
+        RowItem(store, app.versionName, true, cached = true)
+    }.sortedBy { it.store.name.lowercase() }
+
     private fun runSearch(query: String) {
         searchQuery = query
-        setProgress(true)
         setStatus(getString(R.string.status_searching, query))
         io.execute {
             scanLatch.await(20, TimeUnit.SECONDS)
@@ -322,7 +352,6 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 searchRows = rows
                 showRows(rows)
-                setProgress(false)
                 setStatus(
                     if (rows.isEmpty()) getString(R.string.status_search_empty, query)
                     else getString(R.string.status_search, query, rows.size)
@@ -346,20 +375,58 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun openDetail(item: RowItem) {
+        startActivity(AppDetailActivity.intent(this, item.store, item.installedVersion))
+    }
+
+    /** 長按：忽略本次更新／忽略此應用更新／取消忽略。 */
+    private fun onRowLongClick(item: RowItem) {
+        val pkg = item.store.pkg
+        val options = ArrayList<String>()
+        options.add(getString(R.string.ignore_once))
+        options.add(getString(R.string.ignore_forever))
+        if (ignoreStore.isIgnoredForever(pkg) || ignoreStore.ignoredOnceVersion(pkg) != null) {
+            options.add(getString(R.string.ignore_clear))
+        }
+        AlertDialog.Builder(this)
+            .setTitle(item.store.name)
+            .setItems(options.toTypedArray()) { _, which ->
+                when (which) {
+                    0 -> ignoreStore.ignoreOnce(pkg, item.store.versionName)
+                    1 -> ignoreStore.ignoreForever(pkg)
+                    else -> ignoreStore.clear(pkg)
+                }
+                reloadRows()
+                Toast.makeText(this, options[which], Toast.LENGTH_SHORT).show()
+            }
+            .show()
+    }
+
+    private fun reloadRows() {
+        val installed = scanned
+        val cached = cache.load()
+        updateRows = buildRows(installed, cached)
+        if (searchQuery.isEmpty()) showRows(updateRows)
+        setStatus(updateStatus())
+    }
+
     private fun recheck(item: RowItem) {
-        setStatus("檢查 ${item.store.name}…")
+        setStatus(getString(R.string.status_checking, 1, 1))
         io.execute {
             val result = StoreClient.lookup(item.store.pkg)
             val installed = scanned.firstOrNull { it.pkg == item.store.pkg }
             val next = when (result) {
                 is LookupResult.Found -> {
+                    cache.put(result.app)
+                    history.record(result.app.pkg, result.app.versionName)
                     val current = installed?.versionName ?: item.installedVersion
                     if (current == null ||
                         !UpdateDecision.needsUpdate(
                             result.app,
                             current,
                             installed?.versionCode ?: installedVersionCode(item.store.pkg)
-                        )
+                        ) ||
+                        ignoreStore.isIgnored(result.app.pkg, result.app.versionName)
                     ) {
                         null
                     } else {
@@ -375,7 +442,10 @@ class MainActivity : AppCompatActivity() {
                     )
                     RowItem(placeholder(base), base.versionName, false, true)
                 }
-                LookupResult.NotInStore -> null
+                LookupResult.NotInStore -> {
+                    cache.remove(item.store.pkg)
+                    null
+                }
             }
             runOnUiThread {
                 replaceRow(item.store.pkg, next)
@@ -384,7 +454,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** 安裝完成後只重查這一個套件：已是最新就從清單移除。 */
     private fun refreshPackage(pkg: String) {
         if (busy) return
         io.execute {
@@ -393,8 +462,12 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 val next = when (result) {
                     is LookupResult.Found -> {
+                        cache.put(result.app)
+                        history.record(result.app.pkg, result.app.versionName)
                         if (installed == null ||
-                            UpdateDecision.needsUpdate(result.app, installed, installedVersionCode(pkg))
+                            UpdateDecision.needsUpdate(
+                                result.app, installed, installedVersionCode(pkg)
+                            )
                         ) {
                             RowItem(result.app, installed, true)
                         } else {
@@ -402,11 +475,6 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                     else -> null
-                }
-                when (result) {
-                    is LookupResult.Found -> cache.put(result.app)
-                    LookupResult.NotInStore -> cache.remove(pkg)
-                    is LookupResult.Failed -> Unit
                 }
                 if (next == null) DownloadBus.clear(pkg)
                 replaceRow(pkg, next)
@@ -440,17 +508,32 @@ class MainActivity : AppCompatActivity() {
         showRows(if (searchQuery.isEmpty()) updateRows else searchRows)
     }
 
-    private fun updateAll() {
+    private fun updateSelectedOrAll() {
+        val selected = adapter.selectedPkgs()
         val rows = if (searchQuery.isEmpty()) updateRows else searchRows
-        val targets = rows.filter { it.hasUpdate && !it.checkFailed }
+        val targets = if (selected.isNotEmpty()) {
+            rows.filter { it.store.pkg in selected && it.hasUpdate && !it.checkFailed }
+        } else {
+            rows.filter { it.hasUpdate && !it.checkFailed }
+        }
         if (targets.isEmpty()) {
             Toast.makeText(this, R.string.status_none, Toast.LENGTH_SHORT).show()
             return
         }
         targets.forEach { startDownload(it.store) }
+        adapter.clearSelection()
+        onSelectionChanged()
     }
 
-    /** 搜尋結果只帶單一連結；下載前補一次詳情查詢以取得 64 位連結與精確大小。 */
+    private fun onSelectionChanged() {
+        val count = adapter.selectedPkgs().size
+        binding.updateAll.text = if (count > 0) {
+            getString(R.string.action_update_selected, count)
+        } else {
+            getString(R.string.menu_update_all)
+        }
+    }
+
     private fun startDownload(app: StoreApp) {
         if (app.apkUrl64 != null) {
             requestOrStart(app)
@@ -476,10 +559,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun startDownloadNow(app: StoreApp) {
         DownloadStarter.start(this, app)
-    }
-
-    private fun openDetail(item: RowItem) {
-        startActivity(AppDetailActivity.intent(this, item.store, item.installedVersion))
     }
 
     private fun placeholder(app: InstalledApp): StoreApp = StoreApp(
@@ -511,7 +590,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** 背景自動安裝需要懸浮視窗授權，首次出現可更新項目時詢問一次。 */
+    private fun updateGlobalStatus() {
+        val states = DownloadBus.snapshot().values
+        val running = states.filter { it.phase == Phase.RUNNING }
+        val queued = states.filter { it.phase == Phase.QUEUED }
+        if (running.isEmpty() && queued.isEmpty()) {
+            setStatus(updateStatus())
+            return
+        }
+        val speed = running.sumOf { it.speedBps }
+        val remaining = running.sumOf { (it.total - it.bytes).coerceAtLeast(0) } +
+            queued.sumOf { if (it.sizeHint > 0) it.sizeHint else 0L }
+        val eta = if (speed > 0) remaining / speed else 0L
+        setStatus(
+            getString(
+                R.string.global_downloading,
+                Format.speed(speed),
+                Format.eta(eta),
+                running.size + queued.size
+            )
+        )
+    }
+
     private fun maybeAskOverlay() {
         if (Settings.canDrawOverlays(this)) return
         if (updateRows.none { it.hasUpdate }) return
@@ -535,12 +635,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showRows(rows: List<RowItem>) {
+        adapter.setSelectable(searchQuery.isEmpty() && rows.any { it.hasUpdate })
         adapter.submitList(rows)
-        binding.updateAll.isEnabled = searchQuery.isEmpty() && updateRows.any { it.hasUpdate }
+        binding.updateAll.isEnabled =
+            searchQuery.isEmpty() && rows.any { it.hasUpdate }
+        onSelectionChanged()
     }
 
-    private fun setProgress(visible: Boolean) {
-        binding.progress.isVisible = visible
+    private fun finishRefresh() {
+        busy = false
+        binding.swipe.isRefreshing = false
     }
 
     private fun setStatus(text: String) {

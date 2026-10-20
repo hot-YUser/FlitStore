@@ -30,9 +30,12 @@ object StoreClient {
     fun lookup(pkg: String): LookupResult {
         if (pkg.isBlank()) return LookupResult.Failed("包名為空")
         return try {
-            val detail = fetchLookupDetail(LOOKUP_URL + encode(pkg), pkg)
+            val root = fetchLookupRoot(LOOKUP_URL + encode(pkg), pkg)
                 ?: return LookupResult.NotInStore
-            val app = fromLookup(detail, pkg) ?: return LookupResult.Failed("欄位缺失")
+            val detail = root.optJSONObject("appDetail") ?: return LookupResult.NotInStore
+            if (detail.optString("packageName") != pkg) return LookupResult.NotInStore
+            val app = fromLookup(detail, root.optJSONObject("appExt"), pkg)
+                ?: return LookupResult.Failed("欄位缺失")
             LookupResult.Found(app)
         } catch (e: Exception) {
             LookupResult.Failed(e.message ?: e.javaClass.simpleName)
@@ -76,7 +79,7 @@ object StoreClient {
      * 邊讀邊找：`window.systemData` 約在第 50KB，找到完整 JSON 即斷線，
      * 不必下載整頁 364KB。找不到才讀到 EOF（未收錄頁面）。
      */
-    private fun fetchLookupDetail(url: String, pkg: String): JSONObject? {
+    private fun fetchLookupRoot(url: String, pkg: String): JSONObject? {
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
             conn.instanceFollowRedirects = true
@@ -102,10 +105,9 @@ object StoreClient {
                     if (at >= 0) {
                         val json = balancedObject(sb, at + MARKER.length - 1)
                         if (json != null) {
-                            val detail = runCatching {
-                                JSONObject(json).optJSONObject("appDetail")
-                            }.getOrNull()
-                            if (detail != null && detail.optString("packageName") == pkg) return detail
+                            val root = runCatching { JSONObject(json) }.getOrNull()
+                            val detail = root?.optJSONObject("appDetail")
+                            if (detail != null && detail.optString("packageName") == pkg) return root
                         }
                     }
                     if (sb.length > 2_000_000) break
@@ -117,7 +119,7 @@ object StoreClient {
         }
     }
 
-    private fun fromLookup(detail: JSONObject, pkg: String): StoreApp? {
+    private fun fromLookup(detail: JSONObject, ext: JSONObject?, pkg: String): StoreApp? {
         val version = detail.optString("versionName")
         val url = https(detail.optString("apkUrl"))
         val md5 = detail.optString("apkMd5").trim()
@@ -143,7 +145,11 @@ object StoreClient {
             downloadDesc = downCount?.optString("desc")?.takeIf { it.isNotBlank() },
             rating = rating?.optDouble("averageRating")?.takeIf { !it.isNaN() && it > 0 },
             screenshots = strings(detail.optJSONArray("snapshots"), 5),
-            editorIntro = detail.optString("editorIntro").takeIf { it.isNotBlank() }
+            editorIntro = detail.optString("editorIntro").takeIf { it.isNotBlank() },
+            official = detail.optJSONObject("flag")?.optInt("official") == 1,
+            icp = detail.optString("icpNumber").takeIf { it.isNotBlank() },
+            slogan = ext?.optString("slogan")?.takeIf { it.isNotBlank() },
+            ratingCount = rating?.optString("ratingCount")?.toLongOrNull() ?: 0
         )
     }
 

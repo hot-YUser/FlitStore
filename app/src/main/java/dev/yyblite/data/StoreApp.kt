@@ -16,5 +16,9 @@ data class StoreApp(
     val downloadDesc: String?,
     val rating: Double?,
     val screenshots: List<String>,
-    val editorIntro: String?
+    val editorIntro: String?,
+    val official: Boolean = false,
+    val icp: String? = null,
+    val slogan: String? = null,
+    val ratingCount: Long = 0
 )
