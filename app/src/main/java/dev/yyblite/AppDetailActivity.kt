@@ -539,6 +539,15 @@ class AppDetailActivity : AppCompatActivity() {
     private fun refreshAction() {
         val store = app ?: return
         val phase = phaseOf(store)
+        val certOk = dev.yyblite.install.ApkSignature.matchesInstalled(
+            this, store.signatureMd5, store.pkg
+        )
+        if (!certOk) {
+            binding.action.text = getString(R.string.action_cert_mismatch)
+            binding.action.isEnabled = false
+            binding.status.text = getString(R.string.detail_cert_mismatch)
+            return
+        }
         if (updateCache.isRegression(store.pkg, store.versionName)) {
             binding.action.text = getString(R.string.detail_store_regression)
             binding.action.isEnabled = false

@@ -335,7 +335,7 @@ class MainActivity : AppCompatActivity() {
                             if (!certOk) {
                                 android.util.Log.w("YYBLite", "cert mismatch: ${result.app.pkg}")
                             }
-                            val updatable = certOk &&
+                            val updatable =
                                 UpdateDecision.needsUpdate(result.app, app.versionName, app.versionCode) &&
                                 !cache.isRegression(result.app.pkg, result.app.versionName) &&
                                 !ignoreStore.isIgnored(
@@ -343,7 +343,9 @@ class MainActivity : AppCompatActivity() {
                                 )
                             synchronized(live) {
                                 if (updatable) {
-                                    live[result.app.pkg] = RowItem(result.app, app.versionName, true)
+                                    live[result.app.pkg] = RowItem(
+                                        result.app, app.versionName, true, certMismatch = !certOk
+                                    )
                                 } else {
                                     live.remove(result.app.pkg)
                                 }
@@ -434,11 +436,11 @@ class MainActivity : AppCompatActivity() {
         val store = cached[app.pkg] ?: return@mapNotNull null
         if (!UpdateDecision.needsUpdate(store, app.versionName, app.versionCode)) return@mapNotNull null
         if (ignoreStore.isIgnored(store.pkg, store.versionName, store.apkMd5)) return@mapNotNull null
-        if (!dev.yyblite.install.ApkSignature.matchesInstalled(this, store.signatureMd5, store.pkg)) {
-            return@mapNotNull null
-        }
         if (cache.isRegression(store.pkg, store.versionName)) return@mapNotNull null
-        RowItem(store, app.versionName, true, cached = true)
+        val certOk = dev.yyblite.install.ApkSignature.matchesInstalled(
+            this, store.signatureMd5, store.pkg
+        )
+        RowItem(store, app.versionName, true, cached = true, certMismatch = !certOk)
     }.sortedBy { it.store.name.lowercase() }
 
     private fun runSearch(query: String) {
@@ -670,14 +672,16 @@ class MainActivity : AppCompatActivity() {
                             installed?.versionCode ?: installedVersionCode(item.store.pkg)
                         ) ||
                         ignoreStore.isIgnored(result.app.pkg, result.app.versionName, result.app.apkMd5) ||
-                        cache.isRegression(result.app.pkg, result.app.versionName) ||
-                        !dev.yyblite.install.ApkSignature.matchesInstalled(
-                            this, result.app.signatureMd5, result.app.pkg
-                        )
+                        cache.isRegression(result.app.pkg, result.app.versionName)
                     ) {
                         null
                     } else {
-                        RowItem(result.app, current, true)
+                        RowItem(
+                            result.app, current, true,
+                            certMismatch = !dev.yyblite.install.ApkSignature.matchesInstalled(
+                                this, result.app.signatureMd5, result.app.pkg
+                            )
+                        )
                     }
                 }
                 is LookupResult.Failed -> {
@@ -714,12 +718,14 @@ class MainActivity : AppCompatActivity() {
                             UpdateDecision.needsUpdate(
                                 result.app, installed, installedVersionCode(pkg)
                             ) &&
-                            dev.yyblite.install.ApkSignature.matchesInstalled(
-                                this, result.app.signatureMd5, result.app.pkg
-                            ) &&
                             !cache.isRegression(result.app.pkg, result.app.versionName)
                         ) {
-                            RowItem(result.app, installed, true)
+                            RowItem(
+                                result.app, installed, true,
+                                certMismatch = !dev.yyblite.install.ApkSignature.matchesInstalled(
+                                    this, result.app.signatureMd5, result.app.pkg
+                                )
+                            )
                         } else {
                             null
                         }
@@ -762,9 +768,9 @@ class MainActivity : AppCompatActivity() {
         val selected = adapter.selectedPkgs()
         val rows = if (searchQuery.isEmpty()) updateRows else searchRows
         val targets = if (selected.isNotEmpty()) {
-            rows.filter { it.store.pkg in selected && it.hasUpdate && !it.checkFailed }
+            rows.filter { it.store.pkg in selected && it.hasUpdate && !it.checkFailed && !it.certMismatch }
         } else {
-            rows.filter { it.hasUpdate && !it.checkFailed }
+            rows.filter { it.hasUpdate && !it.checkFailed && !it.certMismatch }
         }
         if (targets.isEmpty()) {
             Toast.makeText(this, R.string.status_none, Toast.LENGTH_SHORT).show()

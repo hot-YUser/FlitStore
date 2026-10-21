@@ -18,7 +18,8 @@ data class RowItem(
     val installedVersion: String?,
     val hasUpdate: Boolean,
     val checkFailed: Boolean = false,
-    val cached: Boolean = false
+    val cached: Boolean = false,
+    val certMismatch: Boolean = false
 )
 
 class AppAdapter(
@@ -71,6 +72,7 @@ class AppAdapter(
             binding.name.text = item.store.name
 
             val base = when {
+                item.certMismatch -> ctx.getString(R.string.row_cert_mismatch, item.store.versionName)
                 item.checkFailed -> ctx.getString(R.string.row_check_failed)
                 item.installedVersion == null ->
                     ctx.getString(R.string.row_not_installed, item.store.versionName)
@@ -108,12 +110,14 @@ class AppAdapter(
                 state?.phase == Phase.DONE -> ctx.getString(R.string.action_install)
                 state?.phase == Phase.FAILED -> ctx.getString(R.string.action_retry)
                 item.checkFailed -> ctx.getString(R.string.action_retry)
+                item.certMismatch -> ctx.getString(R.string.action_cert_mismatch)
                 item.installedVersion == null -> ctx.getString(R.string.action_download)
                 else -> ctx.getString(R.string.action_update)
             }
 
             binding.action.text = label
-            binding.action.isEnabled = state?.phase != Phase.RUNNING && state?.phase != Phase.QUEUED
+            binding.action.isEnabled = !item.certMismatch &&
+                state?.phase != Phase.RUNNING && state?.phase != Phase.QUEUED
             binding.action.setOnClickListener { onAction(item) }
             binding.root.setOnClickListener { onItemClick(item) }
             binding.root.setOnLongClickListener {

@@ -18,6 +18,9 @@
     <string name="row_not_installed">未安裝 · 商店版本 %1$s</string>
     <string name="row_check_failed">檢查失敗</string>
     <string name="row_cached_suffix">%1$s · 快取</string>
+    <string name="row_cert_mismatch">商店 %1$s · 簽章不符</string>
+    <string name="action_cert_mismatch">簽章不符</string>
+    <string name="detail_cert_mismatch">簽章不符（商店 APK 與已安裝不同，需解除安裝才能更新）</string>
     <string name="action_update">更新</string>
     <string name="action_download">下載</string>
     <string name="action_install">安裝</string>
