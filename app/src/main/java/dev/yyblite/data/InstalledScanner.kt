@@ -11,6 +11,9 @@ data class InstalledApp(
 )
 
 object InstalledScanner {
+    /** 原版應用寶本身：商店頁對它不是一般 App 頁，會拖慢並拉高失敗數，直接排除。 */
+    private val EXCLUDED = setOf("com.tencent.android.qqdownloader")
+
     fun scan(ctx: Context): List<InstalledApp> {
         val pm = ctx.packageManager
         val out = ArrayList<InstalledApp>()
@@ -19,6 +22,7 @@ object InstalledScanner {
         for (info in packages) {
             val app = info.applicationInfo ?: continue
             if (info.packageName == ctx.packageName) continue
+            if (info.packageName in EXCLUDED) continue
             if (!app.enabled) continue
             val isSystem = (app.flags and ApplicationInfo.FLAG_SYSTEM) != 0
             val updatedSystem = (app.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0

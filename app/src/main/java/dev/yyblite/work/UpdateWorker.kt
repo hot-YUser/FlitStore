@@ -38,7 +38,7 @@ class UpdateWorker(context: Context, params: WorkerParameters) : Worker(context,
         val successes = Collections.synchronizedList(ArrayList<StoreApp>())
         val removed = Collections.synchronizedList(ArrayList<String>())
         val done = CountDownLatch(1)
-        val checker = UpdateChecker(24)
+        val checker = UpdateChecker(32)
 
         checker.check(
             toCheck,

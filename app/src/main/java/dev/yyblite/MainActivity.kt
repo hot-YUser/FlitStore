@@ -64,7 +64,7 @@ class MainActivity : AppCompatActivity() {
     private val io = Executors.newSingleThreadExecutor { r ->
         Thread(r, "ui-io").apply { isDaemon = true }
     }
-    private val checker = UpdateChecker(32)
+    private lateinit var checker: UpdateChecker
     private val scanLatch = CountDownLatch(1)
 
     private lateinit var cache: UpdateCache
@@ -125,6 +125,7 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         applyWindowInsets()
 
+        checker = UpdateChecker(resolveThreads())
         cache = UpdateCache(this)
         ignoreStore = IgnoreStore(this)
 
@@ -238,6 +239,15 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
+    /** 除錯版可透過 Settings.Global 的 yyb_threads 調整並發，方便實機壓測。 */
+    private fun resolveThreads(): Int {
+        val debuggable = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (!debuggable) return 128
+        return runCatching {
+            android.provider.Settings.Global.getInt(contentResolver, "yyb_threads", 128)
+        }.getOrDefault(128).coerceIn(1, 512)
+    }
+
     private fun applyWindowInsets() {
         val density = resources.displayMetrics.density
         val baseToolbarHeight = (56 * density).toInt()
@@ -329,6 +339,7 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
                         is LookupResult.Failed -> {
+                            android.util.Log.w("YYBLite", "lookup failed ${app.pkg}: ${result.reason}")
                             val stale = cached[app.pkg]
                             if (stale != null &&
                                 UpdateDecision.needsUpdate(stale, app.versionName, app.versionCode) &&
