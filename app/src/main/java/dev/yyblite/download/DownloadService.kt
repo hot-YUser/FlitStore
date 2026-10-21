@@ -65,6 +65,17 @@ class DownloadService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /** 除錯版可用 Settings.Global 的 yyb_host 強制 CDN 主機（例如 imtt2.dd.qq.com）。 */
+    private fun forceHost(url: String): String {
+        val debuggable = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (!debuggable) return url
+        val host = runCatching {
+            android.provider.Settings.Global.getString(contentResolver, "yyb_host")
+        }.getOrNull().orEmpty()
+        if (host.isBlank()) return url
+        return url.replace(Regex("//imtt[0-9]*\\.dd\\.qq\\.com"), "//$host")
+    }
+
     /** 除錯版可用 Settings.Global 的 yyb_segments 調整單檔分段數。 */
     private fun resolveSegments(): Int {
         val debuggable = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
@@ -111,7 +122,8 @@ class DownloadService : Service() {
         sizeHint: Long
     ) {
         val startedAt = System.currentTimeMillis()
-        android.util.Log.i("YYBDL", "start $pkg $version $url")
+        val effectiveUrl = forceHost(url)
+        android.util.Log.i("YYBDL", "start $pkg $version $effectiveUrl")
         DownloadBus.publish(DownloadState(pkg, Phase.RUNNING, version = version, abi = abi, sizeHint = sizeHint))
         var total = -1L
         try {
@@ -124,7 +136,7 @@ class DownloadService : Service() {
             var lastBytes = 0L
             var lastTime = System.currentTimeMillis()
             var speed = 0.0
-            downloader.downloadFull(url, md5.ifBlank { null }, part) { done, size ->
+            downloader.downloadFull(effectiveUrl, md5.ifBlank { null }, part) { done, size ->
                 total = size
                 val now = System.currentTimeMillis()
                 val dt = now - lastTime
