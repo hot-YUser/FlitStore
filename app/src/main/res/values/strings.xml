@@ -66,6 +66,8 @@
     <string name="detail_history">版本歷史（本機記錄）</string>
     <string name="detail_operator">運營商</string>
     <string name="detail_developer">開發者</string>
+    <string name="detail_package">套件名稱</string>
+    <string name="detail_package_copied">已複製套件名稱</string>
     <string name="detail_version">版本</string>
     <string name="detail_updated">更新日期</string>
     <string name="detail_category">分類</string>

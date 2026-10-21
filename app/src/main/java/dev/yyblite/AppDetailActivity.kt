@@ -64,6 +64,7 @@ class AppDetailActivity : AppCompatActivity() {
 
     private var app: StoreApp? = null
     private var detail: StoreDetail? = null
+    private var packageName: String = ""
     private var installedVersion: String? = null
     private var subscription: AutoCloseable? = null
     private var requestedDownload = false
@@ -108,12 +109,16 @@ class AppDetailActivity : AppCompatActivity() {
 
         installedVersion = intent.getStringExtra(EXTRA_INSTALLED)
         val pkg = intent.getStringExtra(EXTRA_PKG)
+        packageName = pkg.orEmpty()
         val fallbackName = intent.getStringExtra(EXTRA_NAME) ?: pkg.orEmpty()
 
         binding.name.text = fallbackName
-        binding.developer.text = pkg.orEmpty()
+        binding.developer.text = getString(R.string.detail_loading)
         binding.status.text = getString(R.string.detail_loading)
         binding.action.isEnabled = false
+        binding.action.isVisible = false
+        binding.ignoreOnce.isVisible = false
+        binding.ignoreForever.isVisible = false
 
         binding.ignoreOnce.setOnClickListener {
             app?.let {
@@ -269,7 +274,10 @@ class AppDetailActivity : AppCompatActivity() {
 
         binding.status.text = ""
         binding.action.isEnabled = true
+        binding.action.isVisible = true
         binding.action.setOnClickListener { onAction() }
+        binding.ignoreOnce.isVisible = true
+        binding.ignoreForever.isVisible = true
         binding.ignoreOnce.isEnabled = !ignoreStore.isIgnoredForever(store.pkg) &&
             ignoreStore.ignoredOnceVersion(store.pkg) != store.versionName
         binding.ignoreForever.isEnabled = !ignoreStore.isIgnoredForever(store.pkg)
@@ -283,6 +291,13 @@ class AppDetailActivity : AppCompatActivity() {
 
     private fun renderDetail(extra: StoreDetail?) {
         binding.info.removeAllViews()
+        if (packageName.isNotBlank()) {
+            addInfo(getString(R.string.detail_package), packageName) {
+                val clipboard = getSystemService(android.content.ClipboardManager::class.java)
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("package", packageName))
+                android.widget.Toast.makeText(this, R.string.detail_package_copied, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
         val store = app
         if (store != null) {
             addInfo(getString(R.string.detail_version), store.versionName)
