@@ -8,8 +8,9 @@ data class IgnoredEntry(val pkg: String, val version: String?, val forever: Bool
 class IgnoreStore(ctx: Context) {
     private val prefs = ctx.getSharedPreferences("ignored_updates", Context.MODE_PRIVATE)
 
-    fun ignoreOnce(pkg: String, version: String) {
-        prefs.edit().putString("once:$pkg", version).apply()
+    fun ignoreOnce(pkg: String, version: String, apkMd5: String?) {
+        val key = if (apkMd5.isNullOrBlank()) version else "$version:$apkMd5"
+        prefs.edit().putString("once:$pkg", key).apply()
     }
 
     fun ignoreForever(pkg: String) {
@@ -20,9 +21,11 @@ class IgnoreStore(ctx: Context) {
         prefs.edit().remove("once:$pkg").remove("forever:$pkg").apply()
     }
 
-    fun isIgnored(pkg: String, storeVersion: String): Boolean {
+    fun isIgnored(pkg: String, storeVersion: String, apkMd5: String? = null): Boolean {
         if (prefs.getBoolean("forever:$pkg", false)) return true
-        return prefs.getString("once:$pkg", null) == storeVersion
+        val stored = prefs.getString("once:$pkg", null) ?: return false
+        if (stored == storeVersion) return true
+        return !apkMd5.isNullOrBlank() && stored == "$storeVersion:$apkMd5"
     }
 
     fun isIgnoredForever(pkg: String): Boolean = prefs.getBoolean("forever:$pkg", false)

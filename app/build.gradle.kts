@@ -43,6 +43,7 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 
     // Shizuku：免外部安裝器的特權安裝通道
     implementation("dev.rikka.shizuku:api:13.1.5")

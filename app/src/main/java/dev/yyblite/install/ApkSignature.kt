@@ -12,6 +12,36 @@ import java.security.MessageDigest
  */
 object ApkSignature {
 
+    /** 已安裝套件的簽章憑證 MD5。 */
+    fun installedCertificateMd5(ctx: Context, pkg: String): String? {
+        val pm = ctx.packageManager
+        @Suppress("DEPRECATION")
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            PackageManager.GET_SIGNATURES
+        }
+        val info = try {
+            pm.getPackageInfo(pkg, flags)
+        } catch (_: PackageManager.NameNotFoundException) {
+            return null
+        }
+        val signer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            info.signingInfo?.apkContentsSigners?.firstOrNull()
+        } else {
+            @Suppress("DEPRECATION")
+            info.signatures?.firstOrNull()
+        } ?: return null
+        return md5(signer.toByteArray())
+    }
+
+    /** 商店提供的憑證與本機不一致時視為可疑更新。 */
+    fun matchesInstalled(ctx: Context, expectedMd5: String?, pkg: String): Boolean {
+        if (expectedMd5.isNullOrBlank()) return true
+        val actual = installedCertificateMd5(ctx, pkg) ?: return true
+        return actual.equals(expectedMd5, ignoreCase = true)
+    }
+
     fun certificateMd5(ctx: Context, apk: File): String? {
         if (!apk.exists()) return null
         val pm = ctx.packageManager
@@ -29,7 +59,9 @@ object ApkSignature {
             info.signatures?.firstOrNull()
         } ?: return null
 
-        val digest = MessageDigest.getInstance("MD5").digest(signer.toByteArray())
-        return digest.joinToString("") { "%02x".format(it) }
+        return md5(signer.toByteArray())
     }
+
+    private fun md5(bytes: ByteArray): String =
+        MessageDigest.getInstance("MD5").digest(bytes).joinToString("") { "%02x".format(it) }
 }

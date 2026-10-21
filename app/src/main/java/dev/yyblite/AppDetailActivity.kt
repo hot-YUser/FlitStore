@@ -129,7 +129,7 @@ class AppDetailActivity : AppCompatActivity() {
 
         binding.ignoreOnce.setOnClickListener {
             app?.let {
-                ignoreStore.ignoreOnce(it.pkg, it.versionName)
+                ignoreStore.ignoreOnce(it.pkg, it.versionName, it.apkMd5)
                 binding.status.text = getString(R.string.detail_ignored)
                 binding.ignoreOnce.isEnabled = false
                 binding.ignoreForever.isEnabled = false
@@ -286,7 +286,7 @@ class AppDetailActivity : AppCompatActivity() {
         binding.ignoreOnce.isVisible = true
         binding.ignoreForever.isVisible = true
         binding.ignoreOnce.isEnabled = !ignoreStore.isIgnoredForever(store.pkg) &&
-            ignoreStore.ignoredOnceVersion(store.pkg) != store.versionName
+            !ignoreStore.isIgnored(store.pkg, store.versionName, store.apkMd5)
         binding.ignoreForever.isEnabled = !ignoreStore.isIgnoredForever(store.pkg)
         if (ignoreStore.isIgnoredForever(store.pkg)) {
             binding.status.text = getString(R.string.detail_ignored)

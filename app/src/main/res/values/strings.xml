@@ -61,6 +61,8 @@
     <string name="downgrade_message">此 APK 版本低於已安裝版本：\n已安裝 %1$s（%2$d）\n將安裝 %3$s（%4$d）\n\n降級可能造成資料遺失或功能異常，確定要繼續嗎？</string>
     <string name="downgrade_confirm">仍要降級安裝</string>
     <string name="downgrade_blocked">目標版本低於已安裝版本，已停止自動降級</string>
+    <string name="updates_channel">更新通知</string>
+    <string name="updates_found">有 %1$d 個應用可更新</string>
     <string name="notification_ready_hint">點一下安裝 %1$s</string>
     <string name="overlay_title">允許背景自動安裝</string>
     <string name="overlay_message">離開 App 後，Android 會阻擋自動開啟安裝器。允許「顯示在其他應用上層」後，下載完成即可直接安裝，不需再按一次。</string>

@@ -311,8 +311,15 @@ class MainActivity : AppCompatActivity() {
                     when (result) {
                         is LookupResult.Found -> {
                             successes.add(result.app)
-                            if (UpdateDecision.needsUpdate(result.app, app.versionName, app.versionCode) &&
-                                !ignoreStore.isIgnored(result.app.pkg, result.app.versionName)
+                            val certOk = dev.yyblite.install.ApkSignature.matchesInstalled(
+                                this, result.app.signatureMd5, result.app.pkg
+                            )
+                            if (!certOk) {
+                                android.util.Log.w("YYBLite", "cert mismatch: ${result.app.pkg}")
+                            }
+                            if (certOk &&
+                                UpdateDecision.needsUpdate(result.app, app.versionName, app.versionCode) &&
+                                !ignoreStore.isIgnored(result.app.pkg, result.app.versionName, result.app.apkMd5)
                             ) {
                                 found.add(RowItem(result.app, app.versionName, true))
                             }
@@ -321,7 +328,7 @@ class MainActivity : AppCompatActivity() {
                             val stale = cached[app.pkg]
                             if (stale != null &&
                                 UpdateDecision.needsUpdate(stale, app.versionName, app.versionCode) &&
-                                !ignoreStore.isIgnored(stale.pkg, stale.versionName)
+                                !ignoreStore.isIgnored(stale.pkg, stale.versionName, stale.apkMd5)
                             ) {
                                 found.add(RowItem(stale, app.versionName, true, cached = true))
                             } else {
@@ -367,7 +374,10 @@ class MainActivity : AppCompatActivity() {
     ): List<RowItem> = installed.mapNotNull { app ->
         val store = cached[app.pkg] ?: return@mapNotNull null
         if (!UpdateDecision.needsUpdate(store, app.versionName, app.versionCode)) return@mapNotNull null
-        if (ignoreStore.isIgnored(store.pkg, store.versionName)) return@mapNotNull null
+        if (ignoreStore.isIgnored(store.pkg, store.versionName, store.apkMd5)) return@mapNotNull null
+        if (!dev.yyblite.install.ApkSignature.matchesInstalled(this, store.signatureMd5, store.pkg)) {
+            return@mapNotNull null
+        }
         RowItem(store, app.versionName, true, cached = true)
     }.sortedBy { it.store.name.lowercase() }
 
@@ -566,7 +576,7 @@ class MainActivity : AppCompatActivity() {
             .setTitle(item.store.name)
             .setItems(options.toTypedArray()) { _, which ->
                 when (which) {
-                    0 -> ignoreStore.ignoreOnce(pkg, item.store.versionName)
+                    0 -> ignoreStore.ignoreOnce(pkg, item.store.versionName, item.store.apkMd5)
                     1 -> ignoreStore.ignoreForever(pkg)
                     else -> ignoreStore.clear(pkg)
                 }
@@ -599,7 +609,10 @@ class MainActivity : AppCompatActivity() {
                             current,
                             installed?.versionCode ?: installedVersionCode(item.store.pkg)
                         ) ||
-                        ignoreStore.isIgnored(result.app.pkg, result.app.versionName)
+                        ignoreStore.isIgnored(result.app.pkg, result.app.versionName, result.app.apkMd5) ||
+                        !dev.yyblite.install.ApkSignature.matchesInstalled(
+                            this, result.app.signatureMd5, result.app.pkg
+                        )
                     ) {
                         null
                     } else {
@@ -636,9 +649,12 @@ class MainActivity : AppCompatActivity() {
                 val next = when (result) {
                     is LookupResult.Found -> {
                         cache.put(result.app)
-                        if (installed == null ||
+                        if (installed != null &&
                             UpdateDecision.needsUpdate(
                                 result.app, installed, installedVersionCode(pkg)
+                            ) &&
+                            dev.yyblite.install.ApkSignature.matchesInstalled(
+                                this, result.app.signatureMd5, result.app.pkg
                             )
                         ) {
                             RowItem(result.app, installed, true)

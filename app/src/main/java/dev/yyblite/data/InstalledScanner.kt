@@ -19,6 +19,7 @@ object InstalledScanner {
         for (info in packages) {
             val app = info.applicationInfo ?: continue
             if (info.packageName == ctx.packageName) continue
+            if (!app.enabled) continue
             val isSystem = (app.flags and ApplicationInfo.FLAG_SYSTEM) != 0
             val updatedSystem = (app.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
             if (isSystem && !updatedSystem) continue
