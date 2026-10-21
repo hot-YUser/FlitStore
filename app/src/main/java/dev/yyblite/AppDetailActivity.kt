@@ -1,6 +1,7 @@
 package dev.yyblite
 
 import android.Manifest
+import android.app.Dialog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -22,17 +23,15 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
-import dev.yyblite.data.Abi
-import dev.yyblite.data.AppRef
 import dev.yyblite.data.IgnoreStore
 import dev.yyblite.data.LookupResult
 import dev.yyblite.data.Review
+import dev.yyblite.data.ReviewPage
 import dev.yyblite.data.StoreApp
 import dev.yyblite.data.StoreClient
 import dev.yyblite.data.StoreDetail
 import dev.yyblite.data.StoreDetailClient
 import dev.yyblite.data.UpdateDecision
-import dev.yyblite.data.VersionHistory
 import dev.yyblite.databinding.ActivityDetailBinding
 import dev.yyblite.download.DownloadBus
 import dev.yyblite.download.DownloadStarter
@@ -62,13 +61,17 @@ class AppDetailActivity : AppCompatActivity() {
         Thread(r, "detail-io").apply { isDaemon = true }
     }
     private lateinit var ignoreStore: IgnoreStore
-    private lateinit var history: VersionHistory
 
     private var app: StoreApp? = null
     private var detail: StoreDetail? = null
     private var installedVersion: String? = null
     private var subscription: AutoCloseable? = null
     private var requestedDownload = false
+
+    private val reviews = ArrayList<Review>()
+    private var reviewTotal = 0L
+    private var reviewHasNext = false
+    private var reviewPageIndex = 0
 
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -104,7 +107,6 @@ class AppDetailActivity : AppCompatActivity() {
         supportActionBar?.title = getString(R.string.detail_title)
 
         ignoreStore = IgnoreStore(this)
-        history = VersionHistory(this)
 
         installedVersion = intent.getStringExtra(EXTRA_INSTALLED)
         val pkg = intent.getStringExtra(EXTRA_PKG)
@@ -131,6 +133,7 @@ class AppDetailActivity : AppCompatActivity() {
                 binding.ignoreForever.isEnabled = false
             }
         }
+        binding.moreReviews.setOnClickListener { loadMoreReviews() }
 
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_REPLACED)
@@ -165,6 +168,7 @@ class AppDetailActivity : AppCompatActivity() {
                 runOnUiThread {
                     detail = extra
                     renderDetail(extra)
+                    applyReviews(extra.reviewPage, replace = true)
                 }
             }
         }
@@ -216,16 +220,33 @@ class AppDetailActivity : AppCompatActivity() {
         binding.slogan.isVisible = !store.slogan.isNullOrBlank()
         binding.meta.text = listOfNotNull(
             store.downloadDesc?.let { "下載 $it" },
-            store.rating?.let { "評分 %.1f" .format(it) + if (store.ratingCount > 0) "（${store.ratingCount} 人）" else "" }
+            store.rating?.let { "評分 %.1f".format(it) }
         ).joinToString(" · ")
-        binding.official.isVisible = store.official
 
+        binding.official.text = if (store.official) {
+            getString(R.string.detail_official)
+        } else {
+            getString(R.string.detail_unofficial)
+        }
+        binding.official.setTextColor(
+            ContextCompat.getColor(
+                this,
+                if (store.official) R.color.primary else android.R.color.darker_gray
+            )
+        )
+        binding.official.setBackgroundColor(
+            if (store.official) android.graphics.Color.argb(26, 30, 111, 217)
+            else android.graphics.Color.argb(26, 128, 128, 128)
+        )
+        binding.official.setOnClickListener(null)
+
+        binding.icon.setOnClickListener { store.iconUrl?.let(::openImage) }
         ThumbCache.load(store.iconUrl, binding.icon)
 
         binding.screenshots.removeAllViews()
         binding.screenshots.isVisible = store.screenshots.isNotEmpty()
-        val width = (100 * resources.displayMetrics.density).toInt()
-        val height = (178 * resources.displayMetrics.density).toInt()
+        val width = (104 * resources.displayMetrics.density).toInt()
+        val height = (184 * resources.displayMetrics.density).toInt()
         val gap = (8 * resources.displayMetrics.density).toInt()
         store.screenshots.forEachIndexed { index, url ->
             val view = ImageView(this)
@@ -234,6 +255,7 @@ class AppDetailActivity : AppCompatActivity() {
             }
             view.scaleType = ImageView.ScaleType.FIT_CENTER
             ThumbCache.load(url, view)
+            view.setOnClickListener { openImage(url) }
             binding.screenshots.addView(view)
         }
 
@@ -250,7 +272,6 @@ class AppDetailActivity : AppCompatActivity() {
             binding.status.text = getString(R.string.detail_ignored)
         }
 
-        renderHistory(store)
         renderDetail(detail)
         refreshAction()
     }
@@ -285,8 +306,14 @@ class AppDetailActivity : AppCompatActivity() {
         }
         store?.icp?.let { addInfo(getString(R.string.detail_icp), it) }
 
-        renderReviews(extra.reviews)
-        renderSameDeveloper(extra.sameDeveloper)
+        extra.reviewPage?.distribution?.takeIf { it.isNotEmpty() }?.let { dist ->
+            val total = dist.values.sum().coerceAtLeast(1)
+            val text = (5 downTo 1).mapNotNull { star ->
+                val count = dist[star] ?: return@mapNotNull null
+                "$star★ ${count * 100 / total}%"
+            }.joinToString("  ")
+            addInfo(getString(R.string.detail_rating_mix), text)
+        }
     }
 
     private fun addInfo(label: String, value: String, onClick: (() -> Unit)? = null) {
@@ -294,21 +321,23 @@ class AppDetailActivity : AppCompatActivity() {
         val row = LinearLayout(this)
         row.orientation = LinearLayout.HORIZONTAL
         row.gravity = Gravity.CENTER_VERTICAL
-        row.setPadding(0, dp(3), 0, dp(3))
+        row.setPadding(0, dp(5), 0, dp(5))
 
         val name = TextView(this)
         name.text = label
-        name.textSize = 13f
+        name.textSize = 12f
         name.setTextColor(ContextCompat.getColor(this, android.R.color.darker_gray))
-        name.layoutParams = LinearLayout.LayoutParams(dp(72), LinearLayout.LayoutParams.WRAP_CONTENT)
+        name.layoutParams = LinearLayout.LayoutParams(dp(78), LinearLayout.LayoutParams.WRAP_CONTENT)
 
         val content = TextView(this)
         content.text = value
-        content.textSize = 13f
+        content.textSize = 14f
         content.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         if (onClick != null) {
             content.setTextColor(ContextCompat.getColor(this, R.color.primary))
             content.setOnClickListener { onClick() }
+        } else {
+            content.setTextColor(themeColor(android.R.attr.textColorPrimary))
         }
         Linkify.addLinks(content, Linkify.WEB_URLS)
         content.linksClickable = true
@@ -318,24 +347,75 @@ class AppDetailActivity : AppCompatActivity() {
         binding.info.addView(row)
     }
 
-    private fun renderReviews(reviews: List<Review>) {
-        binding.reviews.removeAllViews()
+    private fun applyReviews(page: ReviewPage?, replace: Boolean) {
+        if (page == null) {
+            if (replace) binding.reviewsTitle.isVisible = reviews.isNotEmpty()
+            binding.moreReviews.isVisible = false
+            return
+        }
+        if (replace) reviews.clear()
+        reviews.addAll(page.reviews)
+        reviewTotal = page.total
+        reviewHasNext = page.hasNext
+
         binding.reviewsTitle.isVisible = reviews.isNotEmpty()
-        reviews.take(6).forEach { review ->
+        binding.reviewsTitle.text = if (reviewTotal > 0) {
+            getString(R.string.detail_reviews_count, reviewTotal)
+        } else {
+            getString(R.string.detail_reviews)
+        }
+        renderReviews()
+
+        binding.moreReviews.isVisible = reviewHasNext
+        binding.moreReviews.isEnabled = true
+        binding.moreReviews.text = if (reviewTotal > 0) {
+            getString(R.string.detail_show_all_reviews_count, reviews.size, reviewTotal)
+        } else {
+            getString(R.string.detail_show_all_reviews)
+        }
+    }
+
+    private fun loadMoreReviews() {
+        val store = app ?: return
+        binding.moreReviews.isEnabled = false
+        binding.moreReviews.text = getString(R.string.detail_reviews_loading)
+        io.execute {
+            val page = StoreDetailClient.fetchComments(store.pkg, reviewPageIndex + 1)
+            if (page != null) reviewPageIndex++
+            runOnUiThread { applyReviews(page, replace = false) }
+        }
+    }
+
+    private fun renderReviews() {
+        binding.reviews.removeAllViews()
+        val divider = ContextCompat.getColor(this, android.R.color.darker_gray)
+        reviews.forEachIndexed { index, review ->
+            if (index > 0) {
+                val line = View(this)
+                line.setBackgroundColor(divider)
+                line.alpha = 0.25f
+                line.layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, 1
+                ).apply { topMargin = dp(8) }
+                binding.reviews.addView(line)
+            }
+
             val box = LinearLayout(this)
             box.orientation = LinearLayout.VERTICAL
-            box.setPadding(0, dp(6), 0, dp(6))
+            box.setPadding(0, dp(8), 0, dp(2))
 
             val header = TextView(this)
-            val stars = "★".repeat(review.stars.coerceIn(0, 5)) + "☆".repeat((5 - review.stars).coerceIn(0, 5))
-            header.text = "${review.user}  $stars  ${review.date}"
+            val stars = "★".repeat(review.stars.coerceIn(0, 5))
+            val like = if (review.likes > 0) "  ·  ${review.likes} 讚" else ""
+            header.text = "${review.user}  $stars  ${review.date}$like"
             header.textSize = 12f
             header.setTextColor(ContextCompat.getColor(this, android.R.color.darker_gray))
 
             val body = TextView(this)
             body.text = review.content
-            body.textSize = 13f
-            body.setPadding(0, dp(2), 0, 0)
+            body.textSize = 14f
+            body.setLineSpacing(dp(3).toFloat(), 1f)
+            body.setPadding(0, dp(4), 0, 0)
 
             box.addView(header)
             box.addView(body)
@@ -343,59 +423,15 @@ class AppDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun renderSameDeveloper(refs: List<AppRef>) {
-        binding.same.removeAllViews()
-        binding.sameTitle.isVisible = refs.isNotEmpty()
-        refs.forEach { ref ->
-            val row = LinearLayout(this)
-            row.orientation = LinearLayout.HORIZONTAL
-            row.gravity = Gravity.CENTER_VERTICAL
-            row.setPadding(0, dp(6), 0, dp(6))
-
-            val icon = ImageView(this)
-            icon.layoutParams = LinearLayout.LayoutParams(dp(36), dp(36))
-            ThumbCache.load(ref.iconUrl, icon)
-
-            val text = TextView(this)
-            text.text = ref.name
-            text.textSize = 14f
-            text.setPadding(dp(10), 0, 0, 0)
-
-            row.addView(icon)
-            row.addView(text)
-            row.setOnClickListener {
-                startActivity(
-                    intentFor(
-                        ref.pkg,
-                        ref.name,
-                        installedVersionOf(ref.pkg)
-                    )
-                )
-            }
-            binding.same.addView(row)
-        }
-    }
-
-    private fun renderHistory(store: StoreApp) {
-        binding.history.removeAllViews()
-        val list = history.history(store.pkg)
-        binding.historyTitle.isVisible = true
-        if (list.isEmpty()) {
-            val empty = TextView(this)
-            empty.text = getString(R.string.detail_history_empty)
-            empty.textSize = 12f
-            empty.setTextColor(ContextCompat.getColor(this, android.R.color.darker_gray))
-            binding.history.addView(empty)
-            return
-        }
-        list.take(8).forEach { (version, at) ->
-            val row = TextView(this)
-            row.text = "$version · ${Format.time(at)}"
-            row.textSize = 13f
-            row.setTypeface(Typeface.MONOSPACE)
-            row.setPadding(0, dp(2), 0, dp(2))
-            binding.history.addView(row)
-        }
+    private fun openImage(url: String) {
+        val dialog = Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        val view = ImageView(this)
+        view.scaleType = ImageView.ScaleType.FIT_CENTER
+        view.setBackgroundColor(android.graphics.Color.BLACK)
+        ThumbCache.load(url, view)
+        view.setOnClickListener { dialog.dismiss() }
+        dialog.setContentView(view)
+        dialog.show()
     }
 
     private fun openDeveloper(name: String, developerMode: Boolean) {
@@ -496,4 +532,11 @@ class AppDetailActivity : AppCompatActivity() {
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    private fun themeColor(attr: Int): Int {
+        val typed = obtainStyledAttributes(intArrayOf(attr))
+        val color = typed.getColor(0, android.graphics.Color.WHITE)
+        typed.recycle()
+        return color
+    }
 }

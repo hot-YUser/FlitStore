@@ -6,6 +6,7 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.util.UUID
 import java.util.zip.GZIPInputStream
 
 data class AppRef(
@@ -20,7 +21,16 @@ data class Review(
     val user: String,
     val content: String,
     val date: String,
-    val stars: Int
+    val stars: Int,
+    val likes: Long
+)
+
+data class ReviewPage(
+    val reviews: List<Review>,
+    val hasNext: Boolean,
+    val total: Long,
+    val score: Double?,
+    val distribution: Map<Int, Long>
 )
 
 data class StoreDetail(
@@ -29,20 +39,28 @@ data class StoreDetail(
     val updateTimeSec: Long? = null,
     val category: String? = null,
     val sameDeveloper: List<AppRef> = emptyList(),
-    val reviews: List<Review> = emptyList()
+    val reviewPage: ReviewPage? = null
 )
 
 /**
- * 詳情資料只從 sj.qq.com 的 SSR 頁面取得：appdetail 提供運營商、更新時間、
- * 分類與同開發者清單；review 頁提供用戶評論。皆為免費公開頁面。
+ * 詳情資料來源：
+ * - sj.qq.com/appdetail SSR 頁：運營商、更新時間、分類、同開發者清單
+ * - yybadaccess.3g.qq.com 動態卡片：評論分頁（每次 10 則）與評分分佈
  */
 object StoreDetailClient {
     private const val UA =
         "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36"
+    private const val CARD_URL = "https://yybadaccess.3g.qq.com/v2/dc_pcyyb_official"
+    private const val REVIEW_LAYOUT =
+        "YYB_HOME_GAME_DETAIL_CONTAINER|yybn_game_basic_info|yybn_game_related_game|" +
+            "YYB_HOME_GAME_DETAIL_DEVELOPER_APP_LIST|YYB_HOME_GAME_DETAIL_HOT_CATEGORY|" +
+            "YYB_HOME_GAME_DETAIL_HOT_APP|YYB_HOME_GAME_DETAIL_MORE_DETAIL"
+
     private val NEXT_DATA = Regex(
         "<script id=\"__NEXT_DATA__\"[^>]*>(.*?)</script>",
         RegexOption.DOT_MATCHES_ALL
     )
+    private val guid: String by lazy { UUID.randomUUID().toString() }
 
     fun fetch(pkg: String): StoreDetail? {
         return try {
@@ -95,15 +113,15 @@ object StoreDetailClient {
                 }
             }
 
-            val reviews = runCatching { fetchReviews(pkg) }.getOrDefault(emptyList())
-
+            val ownCategory = item?.optString("cate_name_new")?.takeIf { it.isNotBlank() }
+                ?: item?.optString("cate_name")?.takeIf { it.isNotBlank() }
             StoreDetail(
                 appId = item?.optString("app_id")?.takeIf { it.isNotBlank() },
                 operator = item?.optString("operator")?.takeIf { it.isNotBlank() },
                 updateTimeSec = item?.optString("update_time")?.toLongOrNull(),
-                category = category,
+                category = ownCategory ?: category,
                 sameDeveloper = sameDeveloper.distinctBy { it.pkg },
-                reviews = reviews
+                reviewPage = fetchComments(pkg, 0)
             )
         } catch (e: Exception) {
             System.err.println("StoreDetailClient failed: ${e.message}")
@@ -111,41 +129,113 @@ object StoreDetailClient {
         }
     }
 
-    private fun fetchReviews(pkg: String): List<Review> {
-        val html = httpGet("https://sj.qq.com/appdetail/" + encode(pkg) + "/review")
-        val blocks = html.split("GameReview_commentCard__").drop(1)
-        val out = ArrayList<Review>()
-        for (block in blocks) {
-            val name = Regex("<cite class=\"UserInfo_userName[^\"]*\">(.*?)</cite>", RegexOption.DOT_MATCHES_ALL)
-                .find(block)?.groupValues?.get(1)
-            val content = Regex("<[a-z]+ class=\"[^\"]*CommentCard_commentContent[^\"]*\"[^>]*>(.*?)</[a-z]+>", RegexOption.DOT_MATCHES_ALL)
-                .find(block)?.groupValues?.get(1)
-            val date = Regex("<[a-z]+ class=\"[^\"]*CommentCard_commentDate[^\"]*\"[^>]*>(.*?)</[a-z]+>", RegexOption.DOT_MATCHES_ALL)
-                .find(block)?.groupValues?.get(1)
-            val stars = Regex("CommentCard_commentStar[^\"]*CommentCard_active").findAll(block).count()
-            if (name == null || content == null) continue
-            out.add(
-                Review(
-                    user = clean(name),
-                    content = clean(content),
-                    date = clean(date ?: ""),
-                    stars = stars
+    /** 讀取一頁評論（StartPage 為頁索引，每頁 10 則）。 */
+    fun fetchComments(pkg: String, startPage: Int, pageSize: Int = 10): ReviewPage? {
+        return try {
+            val inner = JSONObject()
+                .put("AppID", "")
+                .put("TagType", "0")
+                .put("SortType", "commentListByHot")
+                .put("PhoneGUID", guid)
+                .put("UserID", "")
+                .put("StartPage", startPage)
+                .put("PageSize", pageSize)
+                .put("BeginTime", 0)
+                .put("EndTime", 0)
+                .put("Version", 1)
+
+            val listS = JSONObject()
+                .put("region", JSONObject().put("repStr", JSONArray().put("CN")))
+                .put("pkgname", JSONObject().put("repStr", JSONArray().put(pkg)))
+                .put("req_json", JSONObject().put("repStr", JSONArray().put(inner.toString())))
+
+            val body = JSONObject()
+                .put("bid", "yybhome")
+                .put("offset", 0)
+                .put("size", pageSize)
+                .put("preview", false)
+                .put("layout", REVIEW_LAYOUT)
+                .put("listS", listS)
+
+            val head = JSONObject()
+                .put("cmd", "dc_pcyyb_official")
+                .put("authInfo", JSONObject().put("businessId", "AuthName"))
+                .put("deviceInfo", JSONObject().put("platformType", 2).put("platform", 1))
+                .put("userInfo", JSONObject().put("guid", guid))
+                .put("expSceneIds", "")
+                .put("hostAppInfo", JSONObject().put("scene", "review"))
+
+            val payload = JSONObject().put("head", head).put("body", body)
+            val response = httpPostJson(CARD_URL, payload.toString())
+            val json = JSONObject(response)
+            if (json.optInt("ret") != 0) return null
+
+            var reviews: JSONArray? = null
+            var hasNext = false
+            var total = 0L
+            var score: Double? = null
+            val distribution = LinkedHashMap<Int, Long>()
+
+            val components = json.optJSONObject("data")?.optJSONArray("components") ?: return null
+            for (i in 0 until components.length()) {
+                val comp = components.optJSONObject(i)
+                val cdata = comp?.optJSONObject("data")
+                val items = cdata?.optJSONArray("itemData") ?: continue
+                for (j in 0 until items.length()) {
+                    val entry = items.optJSONObject(j) ?: continue
+                    val rawComments = entry.opt("comments")
+                    val commentsArray = when (rawComments) {
+                        is JSONArray -> rawComments
+                        is String -> runCatching { JSONArray(rawComments) }.getOrNull()
+                        else -> null
+                    }
+                    if (commentsArray != null) {
+                        reviews = commentsArray
+                        hasNext = entry.optBoolean("hasNext")
+                        total = entry.optString("total").toLongOrNull()
+                            ?: entry.optLong("total")
+                    }
+                    entry.optJSONObject("appScore")?.let { appScore ->
+                        score = appScore.optDouble("score").takeIf { !it.isNaN() && it > 0 }
+                        val mul = appScore.optJSONObject("mulScore")
+                        if (mul != null) {
+                            for (star in 5 downTo 1) {
+                                val count = mul.optString(star.toString()).toLongOrNull() ?: 0L
+                                if (count > 0) distribution[star] = count
+                            }
+                        }
+                    }
+                }
+            }
+
+            val list = ArrayList<Review>()
+            val array = reviews ?: JSONArray()
+            for (i in 0 until array.length()) {
+                val node = array.optJSONObject(i) ?: continue
+                val user = node.optJSONObject("user")
+                val comment = node.optJSONObject("comment") ?: continue
+                list.add(
+                    Review(
+                        user = user?.optString("nickName")?.ifBlank { "匿名" } ?: "匿名",
+                        content = comment.optString("content"),
+                        date = formatDate(comment.optLong("createTime")),
+                        stars = comment.optJSONObject("mulDimensionScore")?.optInt("total") ?: 0,
+                        likes = comment.optString("praiseNum").toLongOrNull() ?: 0
+                    )
                 )
-            )
-            if (out.size >= 12) break
+            }
+            ReviewPage(list, hasNext, total, score, distribution)
+        } catch (e: Exception) {
+            System.err.println("fetchComments failed: ${e.message}")
+            null
         }
-        return out
     }
 
-    private fun clean(html: String): String = html
-        .replace(Regex("<[^>]+>"), "")
-        .replace("&amp;", "&")
-        .replace("&quot;", "\"")
-        .replace("&#x27;", "'")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&nbsp;", " ")
-        .trim()
+    private fun formatDate(epochSeconds: Long): String {
+        if (epochSeconds <= 0) return ""
+        return java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+            .format(java.util.Date(epochSeconds * 1000))
+    }
 
     private fun nextData(html: String): JSONObject? {
         val match = NEXT_DATA.find(html) ?: return null
@@ -167,6 +257,27 @@ object StoreDetailClient {
             conn.setRequestProperty("User-Agent", UA)
             conn.setRequestProperty("Accept-Language", "zh-CN,zh;q=0.9")
             conn.setRequestProperty("Accept-Encoding", "gzip")
+            val code = conn.responseCode
+            if (code !in 200..299) throw IOException("HTTP $code")
+            val gzip = conn.contentEncoding?.contains("gzip", ignoreCase = true) == true
+            val stream = if (gzip) GZIPInputStream(conn.inputStream) else conn.inputStream
+            return stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    private fun httpPostJson(url: String, payload: String): String {
+        val conn = URL(url).openConnection() as HttpURLConnection
+        try {
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 25_000
+            conn.requestMethod = "POST"
+            conn.doOutput = true
+            conn.setRequestProperty("User-Agent", UA)
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.setRequestProperty("Accept-Encoding", "gzip")
+            conn.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
             val code = conn.responseCode
             if (code !in 200..299) throw IOException("HTTP $code")
             val gzip = conn.contentEncoding?.contains("gzip", ignoreCase = true) == true

@@ -32,7 +32,6 @@ import dev.yyblite.data.StoreClient
 import dev.yyblite.data.UpdateCache
 import dev.yyblite.data.UpdateChecker
 import dev.yyblite.data.UpdateDecision
-import dev.yyblite.data.VersionHistory
 import dev.yyblite.databinding.ActivityMainBinding
 import dev.yyblite.download.DownloadBus
 import dev.yyblite.download.DownloadStarter
@@ -62,7 +61,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var cache: UpdateCache
     private lateinit var ignoreStore: IgnoreStore
-    private lateinit var history: VersionHistory
 
     @Volatile private var scanned: List<InstalledApp> = emptyList()
     @Volatile private var busy = false
@@ -98,7 +96,6 @@ class MainActivity : AppCompatActivity() {
 
         cache = UpdateCache(this)
         ignoreStore = IgnoreStore(this)
-        history = VersionHistory(this)
 
         adapter = AppAdapter(::onRowAction, ::openDetail, ::onRowLongClick, ::onSelectionChanged)
         binding.list.layoutManager = LinearLayoutManager(this)
@@ -272,7 +269,6 @@ class MainActivity : AppCompatActivity() {
                     when (result) {
                         is LookupResult.Found -> {
                             successes.add(result.app)
-                            history.record(result.app.pkg, result.app.versionName)
                             if (UpdateDecision.needsUpdate(result.app, app.versionName, app.versionCode) &&
                                 !ignoreStore.isIgnored(result.app.pkg, result.app.versionName)
                             ) {
@@ -418,7 +414,6 @@ class MainActivity : AppCompatActivity() {
             val next = when (result) {
                 is LookupResult.Found -> {
                     cache.put(result.app)
-                    history.record(result.app.pkg, result.app.versionName)
                     val current = installed?.versionName ?: item.installedVersion
                     if (current == null ||
                         !UpdateDecision.needsUpdate(
@@ -463,7 +458,6 @@ class MainActivity : AppCompatActivity() {
                 val next = when (result) {
                     is LookupResult.Found -> {
                         cache.put(result.app)
-                        history.record(result.app.pkg, result.app.versionName)
                         if (installed == null ||
                             UpdateDecision.needsUpdate(
                                 result.app, installed, installedVersionCode(pkg)

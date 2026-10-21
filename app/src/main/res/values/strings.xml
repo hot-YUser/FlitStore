@@ -53,6 +53,12 @@
     <string name="detail_abi32">架構 armeabi-v7a（32 位）</string>
     <string name="detail_downloaded">已下載完成，可安裝</string>
     <string name="detail_official">官方認證</string>
+    <string name="detail_unofficial">未認證</string>
+    <string name="detail_reviews_count">用戶評價（%1$d）</string>
+    <string name="detail_show_all_reviews">顯示全部評論</string>
+    <string name="detail_show_all_reviews_count">顯示全部評論（已載入 %1$d / %2$d）</string>
+    <string name="detail_reviews_loading">載入評論…</string>
+    <string name="detail_rating_mix">星等分佈</string>
     <string name="detail_reviews">用戶評價</string>
     <string name="detail_same_developer">同開發者</string>
     <string name="detail_history">版本歷史（本機記錄）</string>

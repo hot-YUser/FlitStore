@@ -50,7 +50,8 @@ object ThumbCache {
         } finally {
             conn.disconnect()
         }
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        android.util.Log.w("YYBLite", "thumb failed $url", e)
         null
     }
 }
