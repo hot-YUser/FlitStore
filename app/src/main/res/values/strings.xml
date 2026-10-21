@@ -26,6 +26,7 @@
     <string name="diagnostics_copied">已複製診斷記錄</string>
     <string name="row_cached_suffix">%1$s · 快取</string>
     <string name="row_cert_mismatch">商店 %1$s · 簽章不符</string>
+    <string name="row_build_update">本地 %1$s · 商店建置 %2$d</string>
     <string name="action_cert_mismatch">簽章不符</string>
     <string name="detail_cert_mismatch">簽章不符（商店 APK 與已安裝不同，需解除安裝才能更新）</string>
     <string name="action_update">更新</string>

@@ -13,6 +13,7 @@ class UpdateCache(ctx: Context) {
         private const val KEY_CHECKED_AT = "checked_at"
         private const val KEY_NOT_FOUND = "not_found"
         private const val KEY_REGRESSION = "regression"
+        private const val KEY_BUILDS = "builds"
         private const val NEGATIVE_TTL_MS = 3L * 24 * 60 * 60 * 1000
     }
 
@@ -97,6 +98,25 @@ class UpdateCache(ctx: Context) {
         if (!root.has(pkg)) return
         root.remove(pkg)
         prefs.edit().putString(KEY_REGRESSION, root.toString()).apply()
+    }
+
+    /** 已探測的商店建置號（鍵為 APK URL 的 MD5）。 */
+    fun buildProbe(pkg: String): Pair<String, Long>? {
+        val raw = prefs.getString(KEY_BUILDS, null) ?: return null
+        val root = runCatching { JSONObject(raw) }.getOrNull() ?: return null
+        val obj = root.optJSONObject(pkg) ?: return null
+        val md5 = obj.optString("m")
+        val code = obj.optLong("c", 0)
+        if (md5.isBlank() || code <= 0) return null
+        return md5 to code
+    }
+
+    fun putBuildProbe(pkg: String, md5: String, code: Long) {
+        val root = runCatching {
+            prefs.getString(KEY_BUILDS, null)?.let { JSONObject(it) } ?: JSONObject()
+        }.getOrDefault(JSONObject())
+        root.put(pkg, JSONObject().put("m", md5).put("c", code))
+        prefs.edit().putString(KEY_BUILDS, root.toString()).apply()
     }
 
     fun lastFingerprint(): String = prefs.getString(KEY_FINGERPRINT, "") ?: ""

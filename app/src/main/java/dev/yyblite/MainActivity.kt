@@ -23,6 +23,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
+import dev.yyblite.data.Abi
+import dev.yyblite.data.ApkBuildProbe
 import dev.yyblite.data.ErrorLog
 import dev.yyblite.data.IgnoreStore
 import dev.yyblite.data.InstalledApp
@@ -33,6 +35,7 @@ import dev.yyblite.data.StoreClient
 import dev.yyblite.data.UpdateCache
 import dev.yyblite.data.UpdateChecker
 import dev.yyblite.data.UpdateDecision
+import dev.yyblite.data.VersionOrder
 import dev.yyblite.databinding.ActivityMainBinding
 import dev.yyblite.download.DownloadBus
 import dev.yyblite.download.DownloadStarter
@@ -75,6 +78,9 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var busy = false
     @Volatile private var lastProgressAt = 0L
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val probeExecutor = java.util.concurrent.Executors.newFixedThreadPool(4) { r ->
+        Thread(r, "build-probe").apply { isDaemon = true }
+    }
     @Volatile private var flushScheduled = false
     @Volatile private var lastFlushAt = 0L
     @Volatile private var loggedLive = false
@@ -272,6 +278,7 @@ class MainActivity : AppCompatActivity() {
         runCatching { unregisterReceiver(packageReceiver) }
         runCatching { Shizuku.removeRequestPermissionResultListener(shizukuPermissionListener) }
         checker.shutdown()
+        probeExecutor.shutdownNow()
         io.shutdownNow()
         super.onDestroy()
     }
@@ -441,10 +448,55 @@ class MainActivity : AppCompatActivity() {
                         finishRefresh()
                         setStatus(updateStatus())
                         maybeAskOverlay()
+                        probeEqualBuilds(successes, installed.associateBy { it.pkg }, live)
                     }
                 }
             )
         }
+    }
+
+    /**
+     * 同 versionName 的商店重建（例如 B 站 9160100 → 9160300）無法從公開頁得知，
+     * 以 Range 讀取 APK 的 AndroidManifest 取得 versionCode；結果快取在 URL MD5 上。
+     */
+    private fun probeEqualBuilds(
+        apps: List<StoreApp>,
+        installedByPkg: Map<String, InstalledApp>,
+        live: MutableMap<String, RowItem>
+    ) {
+        var candidates = 0
+        for (app in apps) {
+            val installed = installedByPkg[app.pkg] ?: continue
+            if (VersionOrder.compare(app.versionName, installed.versionName) != 0) continue
+            val url = Abi.chooseUrl(app, android.os.Build.SUPPORTED_ABIS.toList())
+            val md5 = Abi.md5For(app, url)
+            val cached = cache.buildProbe(app.pkg)
+            if (cached != null && cached.first == md5) {
+                applyBuildCode(app, installed, cached.second, live)
+                continue
+            }
+            candidates++
+            probeExecutor.execute {
+                val code = ApkBuildProbe.versionCode(url) ?: return@execute
+                cache.putBuildProbe(app.pkg, md5, code)
+                applyBuildCode(app, installed, code, live)
+            }
+        }
+    }
+
+    private fun applyBuildCode(
+        app: StoreApp,
+        installed: InstalledApp,
+        code: Long,
+        live: MutableMap<String, RowItem>
+    ) {
+        if (code <= installed.versionCode) return
+        if (cache.isRegression(app.pkg, app.versionName)) return
+        if (ignoreStore.isIgnored(app.pkg, app.versionName, app.apkMd5)) return
+        synchronized(live) {
+            live[app.pkg] = RowItem(app, installed.versionName, true, buildCode = code)
+        }
+        flushLiveRows(live)
     }
 
     /** 檢查過程中把即時結果合併回畫面（150ms 節流），讓「快取」逐步變成即時資料。 */

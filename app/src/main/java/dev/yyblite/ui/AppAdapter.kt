@@ -20,7 +20,8 @@ data class RowItem(
     val checkFailed: Boolean = false,
     val cached: Boolean = false,
     val certMismatch: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val buildCode: Long? = null
 )
 
 class AppAdapter(
@@ -78,6 +79,8 @@ class AppAdapter(
                     R.string.row_check_failed_reason,
                     item.error ?: ctx.getString(R.string.row_check_failed)
                 )
+                item.buildCode != null ->
+                    ctx.getString(R.string.row_build_update, item.installedVersion, item.buildCode)
                 item.installedVersion == null ->
                     ctx.getString(R.string.row_not_installed, item.store.versionName)
                 item.hasUpdate ->
@@ -120,6 +123,8 @@ class AppAdapter(
                 state?.phase == Phase.FAILED -> ctx.getString(R.string.action_retry)
                 item.checkFailed -> ctx.getString(R.string.action_retry)
                 item.certMismatch -> ctx.getString(R.string.action_cert_mismatch)
+                item.buildCode != null ->
+                    ctx.getString(R.string.row_build_update, item.installedVersion, item.buildCode)
                 item.installedVersion == null -> ctx.getString(R.string.action_download)
                 else -> ctx.getString(R.string.action_update)
             }
