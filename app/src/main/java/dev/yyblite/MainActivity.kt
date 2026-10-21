@@ -64,7 +64,7 @@ class MainActivity : AppCompatActivity() {
     private val io = Executors.newSingleThreadExecutor { r ->
         Thread(r, "ui-io").apply { isDaemon = true }
     }
-    private val checker = UpdateChecker(24)
+    private val checker = UpdateChecker(32)
     private val scanLatch = CountDownLatch(1)
 
     private lateinit var cache: UpdateCache
