@@ -64,7 +64,7 @@ class MainActivity : AppCompatActivity() {
     private val io = Executors.newSingleThreadExecutor { r ->
         Thread(r, "ui-io").apply { isDaemon = true }
     }
-    private val checker = UpdateChecker(4)
+    private val checker = UpdateChecker(24)
     private val scanLatch = CountDownLatch(1)
 
     private lateinit var cache: UpdateCache
@@ -72,6 +72,7 @@ class MainActivity : AppCompatActivity() {
 
     @Volatile private var scanned: List<InstalledApp> = emptyList()
     @Volatile private var busy = false
+    @Volatile private var lastProgressAt = 0L
 
     private var updateRows: List<RowItem> = emptyList()
     private var searchRows: List<RowItem> = emptyList()
@@ -298,7 +299,9 @@ class MainActivity : AppCompatActivity() {
             }
             if (fresh) return@execute
 
-            val total = installed.size
+            // 未收錄的套件在 3 天內不再重查，200+ App 的第二次刷新可少掉大多數請求。
+            val toCheck = installed.filterNot { cache.isNotFoundFresh(it.pkg) }
+            val total = toCheck.size
             val done = AtomicInteger(0)
             val found = Collections.synchronizedList(ArrayList<RowItem>())
             val failed = Collections.synchronizedList(ArrayList<RowItem>())
@@ -306,10 +309,11 @@ class MainActivity : AppCompatActivity() {
             val removed = Collections.synchronizedList(ArrayList<String>())
 
             checker.check(
-                installed,
+                toCheck,
                 { app, result ->
                     when (result) {
                         is LookupResult.Found -> {
+                            cache.clearNotFound(result.app.pkg)
                             successes.add(result.app)
                             val certOk = dev.yyblite.install.ApkSignature.matchesInstalled(
                                 this, result.app.signatureMd5, result.app.pkg
@@ -335,12 +339,19 @@ class MainActivity : AppCompatActivity() {
                                 failed.add(RowItem(placeholder(app), app.versionName, false, true))
                             }
                         }
-                        LookupResult.NotInStore -> removed.add(app.pkg)
+                        LookupResult.NotInStore -> {
+                            removed.add(app.pkg)
+                            cache.markNotFound(app.pkg)
+                        }
                     }
                     val checked = done.incrementAndGet()
-                    runOnUiThread {
-                        if (searchQuery.isEmpty()) {
-                            setStatus(getString(R.string.status_checking, checked, total))
+                    val now = System.currentTimeMillis()
+                    if (checked == total || now - lastProgressAt >= 300) {
+                        lastProgressAt = now
+                        runOnUiThread {
+                            if (searchQuery.isEmpty()) {
+                                setStatus(getString(R.string.status_checking, checked, total))
+                            }
                         }
                     }
                 },
@@ -354,7 +365,7 @@ class MainActivity : AppCompatActivity() {
                     val rows = (found + failed).sortedBy { it.store.name.lowercase() }
                     android.util.Log.i(
                         "YYBLite",
-                        "check done: ${installed.size} apps, ${rows.size} rows, ${failed.size} failed"
+                        "check done: ${toCheck.size}/${installed.size} apps, ${rows.size} rows, ${failed.size} failed"
                     )
                     runOnUiThread {
                         updateRows = rows

@@ -110,7 +110,8 @@ object StoreClient {
                             if (detail != null && detail.optString("packageName") == pkg) return root
                         }
                     }
-                    if (sb.length > 2_000_000) break
+                    // 未收錄頁面沒有 marker，讀到 96KB 即可判定，無須下載完整 187KB。
+                    if (sb.length > 96_000) break
                 }
             }
             return null

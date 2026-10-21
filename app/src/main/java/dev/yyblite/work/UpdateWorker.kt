@@ -33,18 +33,20 @@ class UpdateWorker(context: Context, params: WorkerParameters) : Worker(context,
         val cached = cache.load()
         val fingerprint = cache.fingerprint(installed)
 
+        val toCheck = installed.filterNot { cache.isNotFoundFresh(it.pkg) }
         val found = Collections.synchronizedList(ArrayList<StoreApp>())
         val successes = Collections.synchronizedList(ArrayList<StoreApp>())
         val removed = Collections.synchronizedList(ArrayList<String>())
         val done = CountDownLatch(1)
-        val checker = UpdateChecker(3)
+        val checker = UpdateChecker(16)
 
         checker.check(
-            installed,
+            toCheck,
             { app, result ->
                 when (result) {
                     is LookupResult.Found -> {
                         val store = result.app
+                        cache.clearNotFound(store.pkg)
                         successes.add(store)
                         val certOk = ApkSignature.matchesInstalled(ctx, store.signatureMd5, store.pkg)
                         if (certOk &&
@@ -54,7 +56,10 @@ class UpdateWorker(context: Context, params: WorkerParameters) : Worker(context,
                             found.add(store)
                         }
                     }
-                    LookupResult.NotInStore -> removed.add(app.pkg)
+                    LookupResult.NotInStore -> {
+                        removed.add(app.pkg)
+                        cache.markNotFound(app.pkg)
+                    }
                     is LookupResult.Failed -> Unit
                 }
             },

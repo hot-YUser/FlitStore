@@ -13,6 +13,8 @@ class UpdateCache(ctx: Context) {
         private const val KEY_APPS = "apps"
         private const val KEY_FINGERPRINT = "fingerprint"
         private const val KEY_CHECKED_AT = "checked_at"
+        private const val KEY_NOT_FOUND = "not_found"
+        private const val NEGATIVE_TTL_MS = 3L * 24 * 60 * 60 * 1000
     }
 
     private val prefs = ctx.getSharedPreferences("update_cache", Context.MODE_PRIVATE)
@@ -50,6 +52,29 @@ class UpdateCache(ctx: Context) {
         }.getOrDefault(JSONObject())
         root.remove(pkg)
         prefs.edit().putString(KEY_APPS, root.toString()).apply()
+    }
+
+    fun isNotFoundFresh(pkg: String): Boolean {
+        val raw = prefs.getString(KEY_NOT_FOUND, null) ?: return false
+        val root = runCatching { JSONObject(raw) }.getOrNull() ?: return false
+        val at = root.optLong(pkg, 0L)
+        return at > 0 && System.currentTimeMillis() - at < NEGATIVE_TTL_MS
+    }
+
+    fun markNotFound(pkg: String) {
+        val root = runCatching {
+            prefs.getString(KEY_NOT_FOUND, null)?.let { JSONObject(it) } ?: JSONObject()
+        }.getOrDefault(JSONObject())
+        root.put(pkg, System.currentTimeMillis())
+        prefs.edit().putString(KEY_NOT_FOUND, root.toString()).apply()
+    }
+
+    fun clearNotFound(pkg: String) {
+        val raw = prefs.getString(KEY_NOT_FOUND, null) ?: return
+        val root = runCatching { JSONObject(raw) }.getOrNull() ?: return
+        if (!root.has(pkg)) return
+        root.remove(pkg)
+        prefs.edit().putString(KEY_NOT_FOUND, root.toString()).apply()
     }
 
     fun lastFingerprint(): String = prefs.getString(KEY_FINGERPRINT, "") ?: ""

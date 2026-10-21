@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * 以固定 4 條執行緒查詢商店版本，每筆間隔 200ms 節流。
  * 回呼皆在背景執行緒，呼叫端負責切回主執行緒。
  */
-class UpdateChecker(private val threads: Int = 4) {
+class UpdateChecker(private val threads: Int = 24) {
     private val pool = Executors.newFixedThreadPool(threads) { r ->
         Thread(r, "update-check").apply { isDaemon = true }
     }
@@ -32,11 +32,6 @@ class UpdateChecker(private val threads: Int = 4) {
                     }
                     runCatching { onResult(app, result) }
                 } finally {
-                    try {
-                        Thread.sleep(120)
-                    } catch (_: InterruptedException) {
-                        Thread.currentThread().interrupt()
-                    }
                     if (remaining.decrementAndGet() == 0) onDone()
                 }
             }
