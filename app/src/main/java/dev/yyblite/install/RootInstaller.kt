@@ -61,7 +61,7 @@ object RootInstaller {
         val total = apks.sumOf { it.length() }
         val userId = android.os.Process.myUid() / 100_000
         val created = su(
-            "pm install-create -i $INSTALLER_PACKAGE --user $userId -r -S $total"
+            "pm install-create -i $INSTALLER_PACKAGE --user $userId -r -d -S $total"
         )
         if (!created.ok) throw IOException(created.err.ifBlank { created.out }.ifBlank { "建立安裝工作階段失敗" })
         val sessionId = Regex("""\[(\d+)]""").find(created.out)?.groupValues?.get(1)?.toIntOrNull()

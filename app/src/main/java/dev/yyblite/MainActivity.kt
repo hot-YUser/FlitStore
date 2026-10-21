@@ -102,6 +102,9 @@ class MainActivity : AppCompatActivity() {
         override fun onReceive(context: Context, intent: Intent) {
             val pkg = intent.data?.schemeSpecificPart ?: return
             if (pkg == packageName) return
+            if (intent.action != Intent.ACTION_PACKAGE_REMOVED) {
+                dev.yyblite.install.ApkStore.deleteFor(this@MainActivity, pkg)
+            }
             refreshPackage(pkg)
         }
     }
@@ -412,7 +415,39 @@ class MainActivity : AppCompatActivity() {
 
     private fun installDownloaded(file: java.io.File) {
         io.execute {
+            val downgrade = InstallerEngine.downgradeInfo(this, listOf(file))
+            runOnUiThread {
+                if (downgrade != null) {
+                    confirmDowngrade(file, downgrade)
+                } else {
+                    performInstall(file)
+                }
+            }
+        }
+    }
+
+    private fun confirmDowngrade(file: java.io.File, info: dev.yyblite.install.DowngradeInfo) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.downgrade_title)
+            .setMessage(
+                getString(
+                    R.string.downgrade_message,
+                    info.installedVersion ?: "?",
+                    info.installedCode,
+                    info.targetVersion ?: "?",
+                    info.targetCode
+                )
+            )
+            .setPositiveButton(R.string.downgrade_confirm) { _, _ -> performInstall(file) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun performInstall(file: java.io.File) {
+        android.util.Log.i("YYBLite", "install start ${file.name}")
+        io.execute {
             val outcome = InstallerEngine.install(this, listOf(file))
+            android.util.Log.i("YYBLite", "install outcome: $outcome")
             runOnUiThread {
                 when (outcome) {
                     is InstallOutcome.Installed -> Toast.makeText(

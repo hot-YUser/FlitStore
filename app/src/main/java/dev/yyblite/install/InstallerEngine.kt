@@ -9,6 +9,13 @@ sealed interface InstallOutcome {
     data class Failed(val via: InstallerKind, val message: String) : InstallOutcome
 }
 
+data class DowngradeInfo(
+    val targetVersion: String?,
+    val installedVersion: String?,
+    val targetCode: Long,
+    val installedCode: Long
+)
+
 data class InstallerStatus(
     val mode: InstallerMode,
     val rootBinary: Boolean,
@@ -55,7 +62,7 @@ object InstallerEngine {
         }
         try {
             val kind = resolve(ctx)
-            return when (kind) {
+            val outcome = when (kind) {
             InstallerKind.ROOT -> runCatching {
                 RootInstaller.install(files)
                 InstallOutcome.Installed(InstallerKind.ROOT)
@@ -70,9 +77,44 @@ object InstallerEngine {
             }
             InstallerKind.EXTERNAL -> InstallOutcome.Handoff
             }
+            if (outcome is InstallOutcome.Installed) ApkStore.delete(files)
+            return outcome
         } finally {
             inFlight.remove(key)
         }
+    }
+
+    /** 回傳降級資訊（目標版本低於已安裝版本）；非降級回 null。 */
+    fun downgradeInfo(ctx: Context, files: List<File>): DowngradeInfo? {
+        val apk = files.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) } ?: return null
+        val pm = ctx.packageManager
+        val archive = pm.getPackageArchiveInfo(apk.absolutePath, 0) ?: return null
+        val pkg = archive.packageName ?: return null
+        val installed = try {
+            @Suppress("DEPRECATION")
+            pm.getPackageInfo(pkg, 0)
+        } catch (_: Exception) {
+            return null
+        }
+        val targetCode = if (android.os.Build.VERSION.SDK_INT >= 28) {
+            archive.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            archive.versionCode.toLong()
+        }
+        val installedCode = if (android.os.Build.VERSION.SDK_INT >= 28) {
+            installed.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            installed.versionCode.toLong()
+        }
+        if (targetCode >= installedCode) return null
+        return DowngradeInfo(
+            targetVersion = archive.versionName,
+            installedVersion = installed.versionName,
+            targetCode = targetCode,
+            installedCode = installedCode
+        )
     }
 
     /** 不觸發 su 授權視窗的狀態快照，供設定頁顯示。 */

@@ -80,6 +80,9 @@ class AppDetailActivity : AppCompatActivity() {
         override fun onReceive(context: Context, intent: Intent) {
             val pkg = intent.data?.schemeSpecificPart ?: return
             if (pkg != app?.pkg) return
+            if (intent.action != Intent.ACTION_PACKAGE_REMOVED) {
+                dev.yyblite.install.ApkStore.deleteFor(this@AppDetailActivity, pkg)
+            }
             installedVersion = installedVersionOf(pkg)
             runOnUiThread { refreshAction() }
             io.execute {
@@ -469,6 +472,32 @@ class AppDetailActivity : AppCompatActivity() {
     }
 
     private fun installDownloaded(file: File) {
+        io.execute {
+            val downgrade = InstallerEngine.downgradeInfo(this, listOf(file))
+            runOnUiThread {
+                if (downgrade != null) {
+                    androidx.appcompat.app.AlertDialog.Builder(this)
+                        .setTitle(R.string.downgrade_title)
+                        .setMessage(
+                            getString(
+                                R.string.downgrade_message,
+                                downgrade.installedVersion ?: "?",
+                                downgrade.installedCode,
+                                downgrade.targetVersion ?: "?",
+                                downgrade.targetCode
+                            )
+                        )
+                        .setPositiveButton(R.string.downgrade_confirm) { _, _ -> performInstall(file) }
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .show()
+                } else {
+                    performInstall(file)
+                }
+            }
+        }
+    }
+
+    private fun performInstall(file: File) {
         android.util.Log.i("YYBLite", "install start ${file.name}")
         io.execute {
             val outcome = InstallerEngine.install(this, listOf(file))
@@ -506,12 +535,12 @@ class AppDetailActivity : AppCompatActivity() {
 
     private fun refreshAction() {
         val store = app ?: return
-        if (isUpToDate(store)) {
+        val phase = phaseOf(store)
+        if (isUpToDate(store) && phase != Phase.DONE) {
             binding.action.text = getString(R.string.action_latest)
             binding.action.isEnabled = false
             return
         }
-        val phase = phaseOf(store)
         binding.action.text = when (phase) {
             Phase.RUNNING -> {
                 val state = DownloadBus.snapshot()[store.pkg]

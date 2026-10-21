@@ -45,7 +45,7 @@ object ShizukuInstaller {
             service,
             arrayOf(
                 "pm", "install-create", "-i", INSTALLER_PACKAGE,
-                "--user", userId, "-r", "-S", total.toString()
+                "--user", userId, "-r", "-d", "-S", total.toString()
             )
         )
         val sessionId = Regex("""\[(\d+)]""").find(created)?.groupValues?.get(1)?.toIntOrNull()

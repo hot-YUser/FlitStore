@@ -173,6 +173,14 @@ class DownloadService : Service() {
     }
 
     private fun installDownloaded(target: File, pkg: String, name: String, version: String, abi: String) {
+        val downgrade = InstallerEngine.downgradeInfo(this, listOf(target))
+        if (downgrade != null) {
+            InstallNotification.postFailure(
+                this, name,
+                getString(R.string.downgrade_blocked)
+            )
+            return
+        }
         when (val outcome = InstallerEngine.install(this, listOf(target))) {
             is InstallOutcome.Installed ->
                 android.util.Log.i("YYBDL", "installed $pkg via ${outcome.via}")
