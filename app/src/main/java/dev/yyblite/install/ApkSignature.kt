@@ -35,11 +35,44 @@ object ApkSignature {
         return md5(signer.toByteArray())
     }
 
-    /** 商店提供的憑證與本機不一致時視為可疑更新。 */
+    /**
+     * 商店憑證是否可被已安裝套件接受。Android 的簽章輪替（v3 lineage）會把舊憑證
+     * 保留在 signingCertificateHistory，因此要比對整段歷史，而不是只看目前簽章。
+     */
     fun matchesInstalled(ctx: Context, expectedMd5: String?, pkg: String): Boolean {
         if (expectedMd5.isNullOrBlank()) return true
-        val actual = installedCertificateMd5(ctx, pkg) ?: return true
-        return actual.equals(expectedMd5, ignoreCase = true)
+        val known = installedCertificateMd5s(ctx, pkg)
+        if (known.isEmpty()) return true
+        val ok = known.any { it.equals(expectedMd5, ignoreCase = true) }
+        if (!ok) {
+            android.util.Log.w("YYBLite", "cert not in history $pkg expected=$expectedMd5 known=$known")
+        }
+        return ok
+    }
+
+    /** 已安裝套件的目前簽章與歷史簽章（簽章輪替）之 MD5。 */
+    fun installedCertificateMd5s(ctx: Context, pkg: String): List<String> {
+        val pm = ctx.packageManager
+        @Suppress("DEPRECATION")
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            PackageManager.GET_SIGNATURES
+        }
+        val info = try {
+            pm.getPackageInfo(pkg, flags)
+        } catch (_: PackageManager.NameNotFoundException) {
+            return emptyList()
+        }
+        val signers = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val signing = info.signingInfo ?: return emptyList()
+            (signing.apkContentsSigners?.toList().orEmpty() +
+                signing.signingCertificateHistory?.toList().orEmpty())
+        } else {
+            @Suppress("DEPRECATION")
+            info.signatures?.toList().orEmpty()
+        }
+        return signers.map { md5(it.toByteArray()) }.distinct()
     }
 
     fun certificateMd5(ctx: Context, apk: File): String? {
