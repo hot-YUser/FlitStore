@@ -70,8 +70,6 @@ class AppDetailActivity : AppCompatActivity() {
 
     private val reviews = ArrayList<Review>()
     private var reviewTotal = 0L
-    private var reviewHasNext = false
-    private var reviewPageIndex = 0
 
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -133,7 +131,9 @@ class AppDetailActivity : AppCompatActivity() {
                 binding.ignoreForever.isEnabled = false
             }
         }
-        binding.moreReviews.setOnClickListener { loadMoreReviews() }
+        binding.moreReviews.setOnClickListener {
+            app?.let { ReviewActivity.intent(this, it.pkg, it.name) }?.let(::startActivity)
+        }
 
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_REPLACED)
@@ -168,7 +168,7 @@ class AppDetailActivity : AppCompatActivity() {
                 runOnUiThread {
                     detail = extra
                     renderDetail(extra)
-                    applyReviews(extra.reviewPage, replace = true)
+                    applyReviews(extra.reviewPage)
                 }
             }
         }
@@ -347,16 +347,15 @@ class AppDetailActivity : AppCompatActivity() {
         binding.info.addView(row)
     }
 
-    private fun applyReviews(page: ReviewPage?, replace: Boolean) {
+    private fun applyReviews(page: ReviewPage?) {
         if (page == null) {
-            if (replace) binding.reviewsTitle.isVisible = reviews.isNotEmpty()
+            binding.reviewsTitle.isVisible = reviews.isNotEmpty()
             binding.moreReviews.isVisible = false
             return
         }
-        if (replace) reviews.clear()
+        reviews.clear()
         reviews.addAll(page.reviews)
         reviewTotal = page.total
-        reviewHasNext = page.hasNext
 
         binding.reviewsTitle.isVisible = reviews.isNotEmpty()
         binding.reviewsTitle.text = if (reviewTotal > 0) {
@@ -366,30 +365,19 @@ class AppDetailActivity : AppCompatActivity() {
         }
         renderReviews()
 
-        binding.moreReviews.isVisible = reviewHasNext
+        binding.moreReviews.isVisible = reviewTotal > 0
         binding.moreReviews.isEnabled = true
         binding.moreReviews.text = if (reviewTotal > 0) {
-            getString(R.string.detail_show_all_reviews_count, reviews.size, reviewTotal)
+            getString(R.string.detail_view_all_reviews, reviewTotal)
         } else {
             getString(R.string.detail_show_all_reviews)
-        }
-    }
-
-    private fun loadMoreReviews() {
-        val store = app ?: return
-        binding.moreReviews.isEnabled = false
-        binding.moreReviews.text = getString(R.string.detail_reviews_loading)
-        io.execute {
-            val page = StoreDetailClient.fetchComments(store.pkg, reviewPageIndex + 1)
-            if (page != null) reviewPageIndex++
-            runOnUiThread { applyReviews(page, replace = false) }
         }
     }
 
     private fun renderReviews() {
         binding.reviews.removeAllViews()
         val divider = ContextCompat.getColor(this, android.R.color.darker_gray)
-        reviews.forEachIndexed { index, review ->
+        reviews.take(3).forEachIndexed { index, review ->
             if (index > 0) {
                 val line = View(this)
                 line.setBackgroundColor(divider)

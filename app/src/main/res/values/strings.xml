@@ -56,8 +56,10 @@
     <string name="detail_unofficial">未認證</string>
     <string name="detail_reviews_count">用戶評價（%1$d）</string>
     <string name="detail_show_all_reviews">顯示全部評論</string>
-    <string name="detail_show_all_reviews_count">顯示全部評論（已載入 %1$d / %2$d）</string>
-    <string name="detail_reviews_loading">載入評論…</string>
+    <string name="detail_view_all_reviews">查看全部評論（%1$d）</string>
+    <string name="reviews_count">共 %1$d 則</string>
+    <string name="reviews_loaded">已載入 %1$d 則</string>
+    <string name="reviews_empty">暫無評論</string>
     <string name="detail_rating_mix">星等分佈</string>
     <string name="detail_reviews">用戶評價</string>
     <string name="detail_same_developer">同開發者</string>

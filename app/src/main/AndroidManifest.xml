@@ -43,6 +43,11 @@
             android:parentActivityName=".MainActivity" />
 
         <activity
+            android:name=".ReviewActivity"
+            android:exported="false"
+            android:parentActivityName=".AppDetailActivity" />
+
+        <activity
             android:name=".DeveloperActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity" />

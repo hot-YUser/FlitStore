@@ -130,12 +130,18 @@ object StoreDetailClient {
     }
 
     /** 讀取一頁評論（StartPage 為頁索引，每頁 10 則）。 */
-    fun fetchComments(pkg: String, startPage: Int, pageSize: Int = 10): ReviewPage? {
+    fun fetchComments(
+        pkg: String,
+        startPage: Int,
+        pageSize: Int = 10,
+        tagType: String = "0",
+        sortType: String = "commentListByHot"
+    ): ReviewPage? {
         return try {
             val inner = JSONObject()
                 .put("AppID", "")
-                .put("TagType", "0")
-                .put("SortType", "commentListByHot")
+                .put("TagType", tagType)
+                .put("SortType", sortType)
                 .put("PhoneGUID", guid)
                 .put("UserID", "")
                 .put("StartPage", startPage)
