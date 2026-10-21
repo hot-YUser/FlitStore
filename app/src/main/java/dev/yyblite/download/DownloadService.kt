@@ -14,6 +14,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import dev.yyblite.MainActivity
 import dev.yyblite.R
+import dev.yyblite.data.ErrorLog
 import dev.yyblite.data.StoreApp
 import dev.yyblite.install.ApkSignature
 import dev.yyblite.install.AutoInstall
@@ -175,6 +176,7 @@ class DownloadService : Service() {
             }
         } catch (e: Exception) {
             android.util.Log.w("YYBDL", "fail $pkg: ${e.message}", e)
+            ErrorLog.record("download", "$pkg: ${e.message}")
             DownloadBus.publish(
                 DownloadState(
                     pkg, Phase.FAILED, 0, total, e.message ?: e.javaClass.simpleName,
@@ -198,6 +200,10 @@ class DownloadService : Service() {
                 "YYBDL",
                 "store regression $pkg: apk ${downgrade.targetCode} < installed ${downgrade.installedCode}"
             )
+            ErrorLog.record(
+                "regression",
+                "$pkg: apk ${downgrade.targetCode} < installed ${downgrade.installedCode}"
+            )
             InstallNotification.postFailure(
                 this, name,
                 getString(
@@ -217,6 +223,7 @@ class DownloadService : Service() {
                 }
             is InstallOutcome.Failed -> {
                 android.util.Log.w("YYBDL", "install failed via ${outcome.via}: ${outcome.message}")
+                ErrorLog.record("install", "$pkg: ${outcome.message}")
                 InstallNotification.postFailure(this, name, outcome.message)
             }
         }

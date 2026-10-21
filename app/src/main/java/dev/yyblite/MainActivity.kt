@@ -23,6 +23,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
+import dev.yyblite.data.ErrorLog
 import dev.yyblite.data.IgnoreStore
 import dev.yyblite.data.InstalledApp
 import dev.yyblite.data.InstalledScanner
@@ -186,6 +187,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        R.id.action_diagnostics -> {
+            showDiagnostics()
+            true
+        }
         R.id.action_installer -> {
             showInstallerDialog()
             true
@@ -195,6 +200,34 @@ class MainActivity : AppCompatActivity() {
             true
         }
         else -> super.onOptionsItemSelected(item)
+    }
+
+    private fun showDiagnostics() {
+        val text = ErrorLog.text()
+        if (text.isBlank()) {
+            Toast.makeText(this, R.string.diagnostics_empty, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val density = resources.displayMetrics.density
+        val view = android.widget.TextView(this).apply {
+            this.text = text
+            textSize = 11f
+            typeface = android.graphics.Typeface.MONOSPACE
+            setPadding((20 * density).toInt(), (8 * density).toInt(), (20 * density).toInt(), 0)
+            setTextIsSelectable(true)
+        }
+        val scroll = android.widget.ScrollView(this).apply { addView(view) }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.diagnostics_title)
+            .setView(scroll)
+            .setPositiveButton(R.string.diagnostics_copy) { _, _ ->
+                val clipboard = getSystemService(android.content.ClipboardManager::class.java)
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("diagnostics", text))
+                Toast.makeText(this, R.string.diagnostics_copied, Toast.LENGTH_SHORT).show()
+            }
+            .setNeutralButton(R.string.diagnostics_clear) { _, _ -> ErrorLog.clear() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun showIgnoredDialog() {
@@ -353,6 +386,7 @@ class MainActivity : AppCompatActivity() {
                         }
                         is LookupResult.Failed -> {
                             android.util.Log.w("YYBLite", "lookup failed ${app.pkg}: ${result.reason}")
+                            ErrorLog.record("check", "${app.pkg}: ${result.reason}")
                             val stale = cached[app.pkg]
                             synchronized(live) {
                                 if (stale != null &&
@@ -361,7 +395,10 @@ class MainActivity : AppCompatActivity() {
                                 ) {
                                     live[stale.pkg] = RowItem(stale, app.versionName, true, cached = true)
                                 } else {
-                                    live[app.pkg] = RowItem(placeholder(app), app.versionName, false, true)
+                                    live[app.pkg] = RowItem(
+                                        placeholder(app), app.versionName, false, true,
+                                        error = result.reason
+                                    )
                                 }
                             }
                             failedCount++
@@ -691,7 +728,7 @@ class MainActivity : AppCompatActivity() {
                         item.store.versionName,
                         installedVersionCode(item.store.pkg)
                     )
-                    RowItem(placeholder(base), base.versionName, false, true)
+                    RowItem(placeholder(base), base.versionName, false, true, error = result.reason)
                 }
                 LookupResult.NotInStore -> {
                     cache.remove(item.store.pkg)

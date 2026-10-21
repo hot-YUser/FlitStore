@@ -17,6 +17,13 @@
     <string name="row_store_only">商店版本 %1$s</string>
     <string name="row_not_installed">未安裝 · 商店版本 %1$s</string>
     <string name="row_check_failed">檢查失敗</string>
+    <string name="row_check_failed_reason">檢查失敗：%1$s</string>
+    <string name="menu_diagnostics">診斷記錄</string>
+    <string name="diagnostics_title">診斷記錄</string>
+    <string name="diagnostics_empty">目前沒有錯誤紀錄</string>
+    <string name="diagnostics_copy">複製</string>
+    <string name="diagnostics_clear">清除</string>
+    <string name="diagnostics_copied">已複製診斷記錄</string>
     <string name="row_cached_suffix">%1$s · 快取</string>
     <string name="row_cert_mismatch">商店 %1$s · 簽章不符</string>
     <string name="action_cert_mismatch">簽章不符</string>

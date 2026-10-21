@@ -19,7 +19,8 @@ data class RowItem(
     val hasUpdate: Boolean,
     val checkFailed: Boolean = false,
     val cached: Boolean = false,
-    val certMismatch: Boolean = false
+    val certMismatch: Boolean = false,
+    val error: String? = null
 )
 
 class AppAdapter(
@@ -73,7 +74,10 @@ class AppAdapter(
 
             val base = when {
                 item.certMismatch -> ctx.getString(R.string.row_cert_mismatch, item.store.versionName)
-                item.checkFailed -> ctx.getString(R.string.row_check_failed)
+                item.checkFailed -> ctx.getString(
+                    R.string.row_check_failed_reason,
+                    item.error ?: ctx.getString(R.string.row_check_failed)
+                )
                 item.installedVersion == null ->
                     ctx.getString(R.string.row_not_installed, item.store.versionName)
                 item.hasUpdate ->
@@ -92,12 +96,17 @@ class AppAdapter(
             } else {
                 ""
             }
+            val errorLine = if (state?.phase == Phase.FAILED) {
+                "\n" + (state.error ?: "")
+            } else {
+                ""
+            }
             val cachedSuffix = if (item.cached && state?.phase != Phase.RUNNING && state?.phase != Phase.QUEUED) {
                 ctx.getString(R.string.row_cached_suffix, "")
             } else {
                 ""
             }
-            binding.subtitle.text = base + extra + cachedSuffix
+            binding.subtitle.text = base + extra + cachedSuffix + errorLine
 
             ThumbCache.load(item.store.iconUrl, binding.icon)
 

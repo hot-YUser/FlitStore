@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit
 class YybApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        dev.yyblite.data.ErrorLog.init(this)
         UpdateNotifications.ensureChannel(this)
         scheduleUpdateCheck()
     }
