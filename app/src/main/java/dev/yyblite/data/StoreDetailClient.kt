@@ -38,6 +38,7 @@ data class StoreDetail(
     val operator: String? = null,
     val updateTimeSec: Long? = null,
     val category: String? = null,
+    val description: String? = null,
     val sameDeveloper: List<AppRef> = emptyList(),
     val reviewPage: ReviewPage? = null
 )
@@ -120,6 +121,7 @@ object StoreDetailClient {
                 operator = item?.optString("operator")?.takeIf { it.isNotBlank() },
                 updateTimeSec = item?.optString("update_time")?.toLongOrNull(),
                 category = ownCategory ?: category,
+                description = item?.optString("description")?.takeIf { it.isNotBlank() },
                 sameDeveloper = sameDeveloper.distinctBy { it.pkg },
                 reviewPage = fetchComments(pkg, 0)
             )

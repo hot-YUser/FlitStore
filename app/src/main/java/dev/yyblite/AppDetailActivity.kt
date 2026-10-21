@@ -169,6 +169,10 @@ class AppDetailActivity : AppCompatActivity() {
                     detail = extra
                     renderDetail(extra)
                     applyReviews(extra.reviewPage)
+                    extra.description?.let {
+                        binding.intro.text = it
+                        binding.intro.isVisible = true
+                    }
                 }
             }
         }
@@ -216,8 +220,8 @@ class AppDetailActivity : AppCompatActivity() {
         supportActionBar?.title = store.name
         binding.name.text = store.name
         binding.developer.text = store.developer ?: store.pkg
-        binding.slogan.text = store.slogan.orEmpty()
-        binding.slogan.isVisible = !store.slogan.isNullOrBlank()
+        binding.slogan.text = store.editorIntro.orEmpty()
+        binding.slogan.isVisible = !store.editorIntro.isNullOrBlank()
         binding.meta.text = listOfNotNull(
             store.downloadDesc?.let { "下載 $it" },
             store.rating?.let { "評分 %.1f".format(it) }
@@ -259,8 +263,9 @@ class AppDetailActivity : AppCompatActivity() {
             binding.screenshots.addView(view)
         }
 
-        binding.intro.text = store.editorIntro ?: ""
-        binding.intro.isVisible = !store.editorIntro.isNullOrBlank()
+        val description = detail?.description ?: store.editorIntro
+        binding.intro.text = description ?: ""
+        binding.intro.isVisible = !description.isNullOrBlank()
 
         binding.status.text = ""
         binding.action.isEnabled = true

@@ -25,7 +25,6 @@ object StoreAppJson {
         put("screenshots", JSONArray(app.screenshots))
         put("official", app.official)
         put("icp", app.icp ?: JSONObject.NULL)
-        put("slogan", app.slogan ?: JSONObject.NULL)
         put("ratingCount", app.ratingCount)
     }
 
@@ -55,7 +54,6 @@ object StoreAppJson {
             editorIntro = json.optString("editorIntro").takeIf { it.isNotBlank() && it != "null" },
             official = json.optBoolean("official", false),
             icp = json.optString("icp").takeIf { it.isNotBlank() && it != "null" },
-            slogan = json.optString("slogan").takeIf { it.isNotBlank() && it != "null" },
             ratingCount = json.optLong("ratingCount", 0)
         )
     }

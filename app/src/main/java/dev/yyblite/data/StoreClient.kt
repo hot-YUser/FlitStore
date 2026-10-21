@@ -34,7 +34,7 @@ object StoreClient {
                 ?: return LookupResult.NotInStore
             val detail = root.optJSONObject("appDetail") ?: return LookupResult.NotInStore
             if (detail.optString("packageName") != pkg) return LookupResult.NotInStore
-            val app = fromLookup(detail, root.optJSONObject("appExt"), pkg)
+            val app = fromLookup(detail, pkg)
                 ?: return LookupResult.Failed("欄位缺失")
             LookupResult.Found(app)
         } catch (e: Exception) {
@@ -119,7 +119,7 @@ object StoreClient {
         }
     }
 
-    private fun fromLookup(detail: JSONObject, ext: JSONObject?, pkg: String): StoreApp? {
+    private fun fromLookup(detail: JSONObject, pkg: String): StoreApp? {
         val version = detail.optString("versionName")
         val url = https(detail.optString("apkUrl"))
         val md5 = detail.optString("apkMd5").trim()
@@ -148,7 +148,6 @@ object StoreClient {
             editorIntro = detail.optString("editorIntro").takeIf { it.isNotBlank() },
             official = detail.optJSONObject("flag")?.optInt("official") == 1,
             icp = detail.optString("icpNumber").takeIf { it.isNotBlank() },
-            slogan = ext?.optString("slogan")?.takeIf { it.isNotBlank() },
             ratingCount = rating?.optString("ratingCount")?.toLongOrNull() ?: 0
         )
     }
