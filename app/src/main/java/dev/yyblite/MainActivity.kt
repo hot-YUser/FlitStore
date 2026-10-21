@@ -73,6 +73,10 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var scanned: List<InstalledApp> = emptyList()
     @Volatile private var busy = false
     @Volatile private var lastProgressAt = 0L
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    @Volatile private var flushScheduled = false
+    @Volatile private var lastFlushAt = 0L
+    @Volatile private var loggedLive = false
 
     private var updateRows: List<RowItem> = emptyList()
     private var searchRows: List<RowItem> = emptyList()
@@ -275,11 +279,14 @@ class MainActivity : AppCompatActivity() {
     private fun refresh(force: Boolean = false) {
         if (busy) return
         busy = true
+        loggedLive = false
         searchQuery = ""
         setStatus(getString(R.string.status_scanning))
 
         io.execute {
+            val scanStart = System.currentTimeMillis()
             val installed = InstalledScanner.scan(this)
+            android.util.Log.i("YYBLite", "scan done ${installed.size} in ${System.currentTimeMillis() - scanStart}ms")
             scanned = installed
             scanLatch.countDown()
 
@@ -296,27 +303,24 @@ class MainActivity : AppCompatActivity() {
             val cached = cache.load()
             val cachedRows = buildRows(installed, cached)
             val fingerprint = cache.fingerprint(installed)
-            val fresh = !force && cached.isNotEmpty() && cache.isFresh(fingerprint)
 
+            // 立即顯示快取，並用同一份資料作為即時更新的起點。
+            val live = java.util.Collections.synchronizedMap(LinkedHashMap<String, RowItem>())
+            cachedRows.forEach { live[it.store.pkg] = it }
             runOnUiThread {
                 updateRows = cachedRows
                 if (searchQuery.isEmpty()) showRows(cachedRows)
                 setStatus(updateStatus())
-                if (fresh) {
-                    android.util.Log.i("YYBLite", "cache hit: ${cachedRows.size} rows, skip network")
-                    finishRefresh()
-                }
+                android.util.Log.i("YYBLite", "cache shown ${cachedRows.size}")
             }
-            if (fresh) return@execute
 
-            // 未收錄的套件在 3 天內不再重查，200+ App 的第二次刷新可少掉大多數請求。
+            // 未收錄的套件在 3 天內不再重查。
             val toCheck = installed.filterNot { cache.isNotFoundFresh(it.pkg) }
             val total = toCheck.size
             val done = AtomicInteger(0)
-            val found = Collections.synchronizedList(ArrayList<RowItem>())
-            val failed = Collections.synchronizedList(ArrayList<RowItem>())
             val successes = Collections.synchronizedList(ArrayList<StoreApp>())
             val removed = Collections.synchronizedList(ArrayList<String>())
+            var failedCount = 0
 
             checker.check(
                 toCheck,
@@ -331,30 +335,42 @@ class MainActivity : AppCompatActivity() {
                             if (!certOk) {
                                 android.util.Log.w("YYBLite", "cert mismatch: ${result.app.pkg}")
                             }
-                            if (certOk &&
+                            val updatable = certOk &&
                                 UpdateDecision.needsUpdate(result.app, app.versionName, app.versionCode) &&
-                                !ignoreStore.isIgnored(result.app.pkg, result.app.versionName, result.app.apkMd5)
-                            ) {
-                                found.add(RowItem(result.app, app.versionName, true))
+                                !ignoreStore.isIgnored(
+                                    result.app.pkg, result.app.versionName, result.app.apkMd5
+                                )
+                            synchronized(live) {
+                                if (updatable) {
+                                    live[result.app.pkg] = RowItem(result.app, app.versionName, true)
+                                } else {
+                                    live.remove(result.app.pkg)
+                                }
                             }
                         }
                         is LookupResult.Failed -> {
                             android.util.Log.w("YYBLite", "lookup failed ${app.pkg}: ${result.reason}")
                             val stale = cached[app.pkg]
-                            if (stale != null &&
-                                UpdateDecision.needsUpdate(stale, app.versionName, app.versionCode) &&
-                                !ignoreStore.isIgnored(stale.pkg, stale.versionName, stale.apkMd5)
-                            ) {
-                                found.add(RowItem(stale, app.versionName, true, cached = true))
-                            } else {
-                                failed.add(RowItem(placeholder(app), app.versionName, false, true))
+                            synchronized(live) {
+                                if (stale != null &&
+                                    UpdateDecision.needsUpdate(stale, app.versionName, app.versionCode) &&
+                                    !ignoreStore.isIgnored(stale.pkg, stale.versionName, stale.apkMd5)
+                                ) {
+                                    live[stale.pkg] = RowItem(stale, app.versionName, true, cached = true)
+                                } else {
+                                    live[app.pkg] = RowItem(placeholder(app), app.versionName, false, true)
+                                }
                             }
+                            failedCount++
                         }
                         LookupResult.NotInStore -> {
                             removed.add(app.pkg)
                             cache.markNotFound(app.pkg)
+                            synchronized(live) { live.remove(app.pkg) }
                         }
                     }
+                    flushLiveRows(live)
+
                     val checked = done.incrementAndGet()
                     val now = System.currentTimeMillis()
                     if (checked == total || now - lastProgressAt >= 300) {
@@ -373,10 +389,11 @@ class MainActivity : AppCompatActivity() {
                     cache.save(merged.values)
                     cache.markChecked(fingerprint)
 
-                    val rows = (found + failed).sortedBy { it.store.name.lowercase() }
+                    val finalRows = synchronized(live) { live.values.toList() }
+                    val rows = finalRows.sortedBy { it.store.name.lowercase() }
                     android.util.Log.i(
                         "YYBLite",
-                        "check done: ${toCheck.size}/${installed.size} apps, ${rows.size} rows, ${failed.size} failed"
+                        "check done: ${toCheck.size}/${installed.size} apps, ${rows.size} rows, $failedCount failed"
                     )
                     runOnUiThread {
                         updateRows = rows
@@ -388,6 +405,25 @@ class MainActivity : AppCompatActivity() {
                 }
             )
         }
+    }
+
+    /** 檢查過程中把即時結果合併回畫面（150ms 節流），讓「快取」逐步變成即時資料。 */
+    private fun flushLiveRows(live: MutableMap<String, RowItem>) {
+        if (flushScheduled) return
+        flushScheduled = true
+        val delay = (150 - (System.currentTimeMillis() - lastFlushAt)).coerceAtLeast(0)
+        mainHandler.postDelayed({
+            flushScheduled = false
+            lastFlushAt = System.currentTimeMillis()
+            val rows = synchronized(live) { live.values.toList() }
+                .sortedBy { it.store.name.lowercase() }
+            if (!loggedLive) {
+                loggedLive = true
+                android.util.Log.i("YYBLite", "live flush ${rows.size}")
+            }
+            updateRows = rows
+            if (searchQuery.isEmpty()) showRows(rows)
+        }, delay)
     }
 
     private fun buildRows(

@@ -1,6 +1,7 @@
 package dev.yyblite.data
 
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 
 data class InstalledApp(
@@ -17,6 +18,11 @@ object InstalledScanner {
     fun scan(ctx: Context): List<InstalledApp> {
         val pm = ctx.packageManager
         val out = ArrayList<InstalledApp>()
+        // 一次查詢所有桌面入口，避免對 259 個套件逐一 getLaunchIntentForPackage。
+        val launchers = pm.queryIntentActivities(
+            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0
+        ).mapNotNull { it.activityInfo?.packageName }.toSet()
+
         @Suppress("DEPRECATION")
         val packages = pm.getInstalledPackages(0)
         for (info in packages) {
@@ -27,7 +33,7 @@ object InstalledScanner {
             val isSystem = (app.flags and ApplicationInfo.FLAG_SYSTEM) != 0
             val updatedSystem = (app.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
             if (isSystem && !updatedSystem) continue
-            if (pm.getLaunchIntentForPackage(info.packageName) == null) continue
+            if (info.packageName !in launchers) continue
             out.add(
                 InstalledApp(
                     pkg = info.packageName,

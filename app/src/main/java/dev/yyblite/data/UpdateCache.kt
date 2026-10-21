@@ -4,12 +4,10 @@ import android.content.Context
 import org.json.JSONObject
 
 /**
- * 版本查詢結果快取：開 App 時先顯示上次結果，再背景更新；
- * 同一組已安裝版本在 [FRESH_MS] 內不必重抓（simple.jsp 每次 364KB，無 ETag）。
+ * 版本查詢結果快取：開 App 時先顯示上次結果，再即時刷新覆蓋。
  */
 class UpdateCache(ctx: Context) {
     companion object {
-        const val FRESH_MS = 30 * 60 * 1000L
         private const val KEY_APPS = "apps"
         private const val KEY_FINGERPRINT = "fingerprint"
         private const val KEY_CHECKED_AT = "checked_at"
@@ -84,9 +82,6 @@ class UpdateCache(ctx: Context) {
     fun markChecked(fingerprint: String, at: Long = System.currentTimeMillis()) {
         prefs.edit().putString(KEY_FINGERPRINT, fingerprint).putLong(KEY_CHECKED_AT, at).apply()
     }
-
-    fun isFresh(fingerprint: String): Boolean =
-        fingerprint == lastFingerprint() && System.currentTimeMillis() - lastCheckedAt() < FRESH_MS
 
     /** 已安裝版本集合的指紋；任一套件升版即失效。 */
     fun fingerprint(apps: List<InstalledApp>): String {
