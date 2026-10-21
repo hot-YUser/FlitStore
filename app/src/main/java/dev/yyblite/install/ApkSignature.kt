@@ -75,6 +75,28 @@ object ApkSignature {
         return signers.map { md5(it.toByteArray()) }.distinct()
     }
 
+    /** APK 內目前簽章 + lineage 歷史簽章的 MD5（v3 簽章輪替）。 */
+    fun certificateMd5s(ctx: Context, apk: File): List<String> {
+        if (!apk.exists()) return emptyList()
+        val pm = ctx.packageManager
+        @Suppress("DEPRECATION")
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            PackageManager.GET_SIGNATURES
+        }
+        val info = pm.getPackageArchiveInfo(apk.absolutePath, flags) ?: return emptyList()
+        val signers = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val signing = info.signingInfo ?: return emptyList()
+            (signing.apkContentsSigners?.toList().orEmpty() +
+                signing.signingCertificateHistory?.toList().orEmpty())
+        } else {
+            @Suppress("DEPRECATION")
+            info.signatures?.toList().orEmpty()
+        }
+        return signers.map { md5(it.toByteArray()) }.distinct()
+    }
+
     fun certificateMd5(ctx: Context, apk: File): String? {
         if (!apk.exists()) return null
         val pm = ctx.packageManager

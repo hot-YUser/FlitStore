@@ -150,14 +150,14 @@ class DownloadService : Service() {
             )
 
             if (!expectedSignature.isNullOrBlank()) {
-                val actual = ApkSignature.certificateMd5(this, target)
-                if (actual == null) {
+                val accepted = ApkSignature.certificateMd5s(this, target)
+                if (accepted.isEmpty()) {
                     target.delete()
                     throw IOException("無法讀取 APK 簽章")
                 }
-                if (!actual.equals(expectedSignature, ignoreCase = true)) {
+                if (accepted.none { it.equals(expectedSignature, ignoreCase = true) }) {
                     target.delete()
-                    throw IOException("簽章不符：商店 $expectedSignature / 檔案 $actual")
+                    throw IOException("簽章不符：商店 $expectedSignature / 檔案 $accepted")
                 }
             }
 
