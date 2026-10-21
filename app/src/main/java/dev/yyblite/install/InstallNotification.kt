@@ -13,6 +13,28 @@ import java.io.File
 object InstallNotification {
     private const val CHANNEL_ID = "install"
 
+    fun postFailure(ctx: Context, name: String, message: String) {
+        val manager = ctx.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_ID,
+                ctx.getString(R.string.notification_install_channel),
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
+        )
+        val notification = NotificationCompat.Builder(ctx, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_notify_error)
+            .setContentTitle(ctx.getString(R.string.notification_install_failed, name))
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setAutoCancel(true)
+            .build()
+        try {
+            NotificationManagerCompat.from(ctx).notify(("fail:$name").hashCode(), notification)
+        } catch (_: SecurityException) {
+        }
+    }
+
     fun post(ctx: Context, pkg: String, name: String, version: String, abi: String) {
         val file = File(ctx.getExternalFilesDir("apk"), "${pkg}_${version}_${abi}.apk")
         if (!file.exists()) return

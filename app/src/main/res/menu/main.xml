@@ -10,6 +10,11 @@
         app:showAsAction="always|collapseActionView" />
 
     <item
+        android:id="@+id/action_installer"
+        android:title="@string/installer_title"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_ignored"
         android:title="@string/menu_ignored"
         app:showAsAction="never" />

@@ -18,6 +18,8 @@ import dev.yyblite.data.StoreApp
 import dev.yyblite.install.ApkSignature
 import dev.yyblite.install.AutoInstall
 import dev.yyblite.install.InstallNotification
+import dev.yyblite.install.InstallOutcome
+import dev.yyblite.install.InstallerEngine
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
@@ -56,6 +58,9 @@ class DownloadService : Service() {
 
     private val active = AtomicInteger(0)
     private val downloader = SegmentDownloader(32)
+    private val installExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+        Thread(r, "dl-install").apply { isDaemon = true }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -147,8 +152,12 @@ class DownloadService : Service() {
                 DownloadState(pkg, Phase.DONE, total, total, version = version, abi = abi, sizeHint = sizeHint)
             )
             notifyProgress(name, total, total)
-            if (!AutoInstall.tryInstall(this, pkg, version, abi)) {
-                InstallNotification.post(this, pkg, name, version, abi)
+            installExecutor.execute {
+                try {
+                    installDownloaded(target, pkg, name, version, abi)
+                } finally {
+                    finishActive()
+                }
             }
         } catch (e: Exception) {
             android.util.Log.w("YYBDL", "fail $pkg: ${e.message}", e)
@@ -159,11 +168,29 @@ class DownloadService : Service() {
                 )
             )
             notifyFailure(name, e.message)
-        } finally {
-            if (active.decrementAndGet() == 0) {
-                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-                stopSelf()
+            finishActive()
+        }
+    }
+
+    private fun installDownloaded(target: File, pkg: String, name: String, version: String, abi: String) {
+        when (val outcome = InstallerEngine.install(this, target)) {
+            is InstallOutcome.Installed ->
+                android.util.Log.i("YYBDL", "installed $pkg via ${outcome.via}")
+            InstallOutcome.Handoff ->
+                if (!AutoInstall.tryInstall(this, pkg, version, abi)) {
+                    InstallNotification.post(this, pkg, name, version, abi)
+                }
+            is InstallOutcome.Failed -> {
+                android.util.Log.w("YYBDL", "install failed via ${outcome.via}: ${outcome.message}")
+                InstallNotification.postFailure(this, name, outcome.message)
             }
+        }
+    }
+
+    private fun finishActive() {
+        if (active.decrementAndGet() == 0) {
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+            stopSelf()
         }
     }
 
@@ -206,6 +233,11 @@ class DownloadService : Service() {
         } catch (_: SecurityException) {
             // 通知權限被拒時靜默；下載與前景服務不受影響。
         }
+    }
+
+    override fun onDestroy() {
+        installExecutor.shutdown()
+        super.onDestroy()
     }
 
     private fun notifyFailure(appName: String, message: String?) {

@@ -37,9 +37,13 @@ import dev.yyblite.download.DownloadBus
 import dev.yyblite.download.DownloadStarter
 import dev.yyblite.download.Phase
 import dev.yyblite.install.InstallHandoff
+import dev.yyblite.install.InstallOutcome
+import dev.yyblite.install.InstallerEngine
+import dev.yyblite.install.InstallerKind
 import dev.yyblite.ui.AppVisibility
 import dev.yyblite.ui.Format
 import dev.yyblite.ui.ThumbCache
+import java.io.File
 import java.util.concurrent.Executors
 
 class AppDetailActivity : AppCompatActivity() {
@@ -455,9 +459,36 @@ class AppDetailActivity : AppCompatActivity() {
     private fun onAction() {
         val store = app ?: return
         when (phaseOf(store)) {
-            Phase.DONE -> InstallHandoff.install(this, DownloadStarter.apkFile(this, store))
+            Phase.DONE -> {
+                val file = DownloadStarter.apkFile(this, store)
+                if (file.exists()) installDownloaded(file)
+            }
             Phase.RUNNING, Phase.QUEUED -> Unit
             else -> startDownload(store)
+        }
+    }
+
+    private fun installDownloaded(file: File) {
+        android.util.Log.i("YYBLite", "install start ${file.name}")
+        io.execute {
+            val outcome = InstallerEngine.install(this, file)
+            android.util.Log.i("YYBLite", "install outcome: $outcome")
+            runOnUiThread {
+                when (outcome) {
+                    is InstallOutcome.Installed -> android.widget.Toast.makeText(
+                        this,
+                        if (outcome.via == InstallerKind.ROOT) R.string.installer_installed_root
+                        else R.string.installer_installed_shizuku,
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                    InstallOutcome.Handoff -> InstallHandoff.install(this, file)
+                    is InstallOutcome.Failed -> android.widget.Toast.makeText(
+                        this,
+                        getString(R.string.installer_failed, outcome.message),
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
         }
     }
 

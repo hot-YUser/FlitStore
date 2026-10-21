@@ -58,6 +58,14 @@
             android:foregroundServiceType="dataSync" />
 
         <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="moe.shizuku.manager.permission.API_V23" />
+
+        <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"
             android:exported="false"

@@ -38,6 +38,14 @@ import dev.yyblite.download.DownloadStarter
 import dev.yyblite.download.Phase
 import dev.yyblite.install.AutoInstall
 import dev.yyblite.install.InstallHandoff
+import dev.yyblite.install.InstallOutcome
+import dev.yyblite.install.InstallerEngine
+import dev.yyblite.install.InstallerKind
+import dev.yyblite.install.InstallerMode
+import dev.yyblite.install.InstallerPrefs
+import dev.yyblite.install.InstallerStatus
+import dev.yyblite.install.ShizukuInstaller
+import rikka.shizuku.Shizuku
 import dev.yyblite.ui.AppAdapter
 import dev.yyblite.ui.AppVisibility
 import dev.yyblite.ui.Format
@@ -70,6 +78,25 @@ class MainActivity : AppCompatActivity() {
     private var searchQuery: String = ""
     private var subscription: AutoCloseable? = null
     private val pendingDownloads = ArrayList<StoreApp>()
+    @Volatile private var installerStatus: InstallerStatus? = null
+
+    private val shizukuPermissionListener =
+        Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
+            if (requestCode == ShizukuInstaller.REQUEST_CODE) {
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        if (grantResult == PackageManager.PERMISSION_GRANTED) {
+                            R.string.installer_shizuku_ok
+                        } else {
+                            R.string.installer_shizuku_rejected
+                        },
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    installerStatus = null
+                }
+            }
+        }
 
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -112,6 +139,16 @@ class MainActivity : AppCompatActivity() {
             addDataScheme("package")
         }
         ContextCompat.registerReceiver(this, packageReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        if (ShizukuInstaller.binderAlive()) {
+            Shizuku.addRequestPermissionResultListener(shizukuPermissionListener)
+        }
+        io.execute {
+            installerStatus = InstallerEngine.status(this)
+            android.util.Log.i(
+                "YYBLite",
+                "installer: root=${installerStatus?.rootBinary} shizuku=${installerStatus?.shizukuAlive}"
+            )
+        }
 
         refresh()
     }
@@ -140,6 +177,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        R.id.action_installer -> {
+            showInstallerDialog()
+            true
+        }
         R.id.action_ignored -> {
             showIgnoredDialog()
             true
@@ -168,9 +209,6 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         AppVisibility.onStart()
-        DownloadBus.snapshot().values
-            .filter { it.phase == Phase.DONE }
-            .forEach { AutoInstall.tryInstall(this, it.pkg, it.version ?: return@forEach, it.abi ?: "v7a") }
         subscription = DownloadBus.subscribe { state ->
             runOnUiThread {
                 adapter.setState(state)
@@ -190,6 +228,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         runCatching { unregisterReceiver(packageReceiver) }
+        runCatching { Shizuku.removeRequestPermissionResultListener(shizukuPermissionListener) }
         checker.shutdown()
         io.shutdownNow()
         super.onDestroy()
@@ -364,11 +403,112 @@ class MainActivity : AppCompatActivity() {
         when (DownloadBus.snapshot()[item.store.pkg]?.phase) {
             Phase.DONE -> {
                 val file = DownloadStarter.apkFile(this, item.store)
-                if (file.exists()) InstallHandoff.install(this, file) else startDownload(item.store)
+                if (file.exists()) installDownloaded(file) else startDownload(item.store)
             }
             Phase.RUNNING, Phase.QUEUED -> Unit
             else -> startDownload(item.store)
         }
+    }
+
+    private fun installDownloaded(file: java.io.File) {
+        io.execute {
+            val outcome = InstallerEngine.install(this, file)
+            runOnUiThread {
+                when (outcome) {
+                    is InstallOutcome.Installed -> Toast.makeText(
+                        this,
+                        if (outcome.via == InstallerKind.ROOT) R.string.installer_installed_root
+                        else R.string.installer_installed_shizuku,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    InstallOutcome.Handoff -> InstallHandoff.install(this, file)
+                    is InstallOutcome.Failed -> Toast.makeText(
+                        this,
+                        getString(R.string.installer_failed, outcome.message),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+
+    private fun showInstallerDialog() {
+        val status = installerStatus ?: InstallerEngine.status(this)
+        val prefs = InstallerPrefs(this)
+        val modes = listOf(
+            InstallerMode.AUTO,
+            InstallerMode.ROOT,
+            InstallerMode.SHIZUKU,
+            InstallerMode.EXTERNAL
+        )
+        val labels = listOf(
+            getString(R.string.installer_auto),
+            getString(R.string.installer_root),
+            getString(R.string.installer_shizuku),
+            getString(R.string.installer_external)
+        )
+        val statusText = buildString {
+            append(
+                if (status.rootBinary) getString(R.string.installer_root_status_yes)
+                else getString(R.string.installer_root_status_no)
+            )
+            append('\n')
+            append(
+                when {
+                    !status.shizukuAlive -> getString(R.string.installer_shizuku_absent)
+                    status.shizukuGranted -> getString(R.string.installer_shizuku_granted)
+                    else -> getString(R.string.installer_shizuku_denied)
+                }
+            )
+        }
+
+        val density = resources.displayMetrics.density
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding((20 * density).toInt(), (8 * density).toInt(), (20 * density).toInt(), 0)
+        }
+        val statusView = android.widget.TextView(this).apply {
+            text = statusText
+            textSize = 12f
+            setTextColor(androidx.core.content.ContextCompat.getColor(this@MainActivity, android.R.color.darker_gray))
+            setPadding(0, 0, 0, (10 * density).toInt())
+        }
+        val group = android.widget.RadioGroup(this)
+        labels.forEachIndexed { index, label ->
+            val button = android.widget.RadioButton(this).apply {
+                id = index + 1
+                text = label
+                textSize = 14f
+                isChecked = modes[index] == prefs.mode
+                setPadding(0, (6 * density).toInt(), 0, (6 * density).toInt())
+            }
+            group.addView(button)
+        }
+        container.addView(statusView)
+        container.addView(group)
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.installer_title)
+            .setView(container)
+            .setPositiveButton(R.string.installer_apply) { _, _ ->
+                val selected = (group.checkedRadioButtonId - 1).coerceIn(0, modes.lastIndex)
+                prefs.mode = modes[selected]
+                installerStatus = null
+                if (modes[selected] == InstallerMode.SHIZUKU &&
+                    status.shizukuAlive && !status.shizukuGranted
+                ) {
+                    ShizukuInstaller.requestPermission()
+                }
+            }
+            .setNeutralButton(R.string.installer_request_shizuku) { _, _ ->
+                if (!ShizukuInstaller.binderAlive()) {
+                    Toast.makeText(this, R.string.installer_shizuku_not_running, Toast.LENGTH_SHORT).show()
+                } else {
+                    ShizukuInstaller.requestPermission()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun openDetail(item: RowItem) {
