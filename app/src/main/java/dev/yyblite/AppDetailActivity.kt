@@ -31,6 +31,7 @@ import dev.yyblite.data.StoreApp
 import dev.yyblite.data.StoreClient
 import dev.yyblite.data.StoreDetail
 import dev.yyblite.data.StoreDetailClient
+import dev.yyblite.data.UpdateCache
 import dev.yyblite.data.UpdateDecision
 import dev.yyblite.databinding.ActivityDetailBinding
 import dev.yyblite.download.DownloadBus
@@ -65,6 +66,7 @@ class AppDetailActivity : AppCompatActivity() {
         Thread(r, "detail-io").apply { isDaemon = true }
     }
     private lateinit var ignoreStore: IgnoreStore
+    private lateinit var updateCache: UpdateCache
 
     private var app: StoreApp? = null
     private var detail: StoreDetail? = null
@@ -113,6 +115,7 @@ class AppDetailActivity : AppCompatActivity() {
         supportActionBar?.title = getString(R.string.detail_title)
 
         ignoreStore = IgnoreStore(this)
+        updateCache = UpdateCache(this)
 
         installedVersion = intent.getStringExtra(EXTRA_INSTALLED)
         val pkg = intent.getStringExtra(EXTRA_PKG)
@@ -536,6 +539,11 @@ class AppDetailActivity : AppCompatActivity() {
     private fun refreshAction() {
         val store = app ?: return
         val phase = phaseOf(store)
+        if (updateCache.isRegression(store.pkg, store.versionName)) {
+            binding.action.text = getString(R.string.detail_store_regression)
+            binding.action.isEnabled = false
+            return
+        }
         if (isUpToDate(store) && phase != Phase.DONE) {
             binding.action.text = getString(R.string.action_latest)
             binding.action.isEnabled = false

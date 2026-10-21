@@ -12,6 +12,7 @@ class UpdateCache(ctx: Context) {
         private const val KEY_FINGERPRINT = "fingerprint"
         private const val KEY_CHECKED_AT = "checked_at"
         private const val KEY_NOT_FOUND = "not_found"
+        private const val KEY_REGRESSION = "regression"
         private const val NEGATIVE_TTL_MS = 3L * 24 * 60 * 60 * 1000
     }
 
@@ -73,6 +74,29 @@ class UpdateCache(ctx: Context) {
         if (!root.has(pkg)) return
         root.remove(pkg)
         prefs.edit().putString(KEY_NOT_FOUND, root.toString()).apply()
+    }
+
+    /** 商店提供比已安裝更舊的 versionCode（版本回退），記錄後不再提示。 */
+    fun markRegression(pkg: String, storeVersion: String) {
+        val root = runCatching {
+            prefs.getString(KEY_REGRESSION, null)?.let { JSONObject(it) } ?: JSONObject()
+        }.getOrDefault(JSONObject())
+        root.put(pkg, storeVersion)
+        prefs.edit().putString(KEY_REGRESSION, root.toString()).apply()
+    }
+
+    fun isRegression(pkg: String, storeVersion: String): Boolean {
+        val raw = prefs.getString(KEY_REGRESSION, null) ?: return false
+        val root = runCatching { JSONObject(raw) }.getOrNull() ?: return false
+        return root.optString(pkg) == storeVersion
+    }
+
+    fun clearRegression(pkg: String) {
+        val raw = prefs.getString(KEY_REGRESSION, null) ?: return
+        val root = runCatching { JSONObject(raw) }.getOrNull() ?: return
+        if (!root.has(pkg)) return
+        root.remove(pkg)
+        prefs.edit().putString(KEY_REGRESSION, root.toString()).apply()
     }
 
     fun lastFingerprint(): String = prefs.getString(KEY_FINGERPRINT, "") ?: ""

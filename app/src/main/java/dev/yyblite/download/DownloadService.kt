@@ -189,9 +189,22 @@ class DownloadService : Service() {
     private fun installDownloaded(target: File, pkg: String, name: String, version: String, abi: String) {
         val downgrade = InstallerEngine.downgradeInfo(this, listOf(target))
         if (downgrade != null) {
+            // 商店頁以 versionName 判斷「較新」，但 APK 的 versionCode 可能更舊；
+            // 這種情況直接刪檔並記錄，避免每次刷新都重抓。
+            target.delete()
+            dev.yyblite.data.UpdateCache(this).markRegression(pkg, version)
+            DownloadBus.clear(pkg)
+            android.util.Log.w(
+                "YYBDL",
+                "store regression $pkg: apk ${downgrade.targetCode} < installed ${downgrade.installedCode}"
+            )
             InstallNotification.postFailure(
                 this, name,
-                getString(R.string.downgrade_blocked)
+                getString(
+                    R.string.store_regression,
+                    downgrade.targetCode,
+                    downgrade.installedCode
+                )
             )
             return
         }

@@ -337,6 +337,7 @@ class MainActivity : AppCompatActivity() {
                             }
                             val updatable = certOk &&
                                 UpdateDecision.needsUpdate(result.app, app.versionName, app.versionCode) &&
+                                !cache.isRegression(result.app.pkg, result.app.versionName) &&
                                 !ignoreStore.isIgnored(
                                     result.app.pkg, result.app.versionName, result.app.apkMd5
                                 )
@@ -436,6 +437,7 @@ class MainActivity : AppCompatActivity() {
         if (!dev.yyblite.install.ApkSignature.matchesInstalled(this, store.signatureMd5, store.pkg)) {
             return@mapNotNull null
         }
+        if (cache.isRegression(store.pkg, store.versionName)) return@mapNotNull null
         RowItem(store, app.versionName, true, cached = true)
     }.sortedBy { it.store.name.lowercase() }
 
@@ -668,6 +670,7 @@ class MainActivity : AppCompatActivity() {
                             installed?.versionCode ?: installedVersionCode(item.store.pkg)
                         ) ||
                         ignoreStore.isIgnored(result.app.pkg, result.app.versionName, result.app.apkMd5) ||
+                        cache.isRegression(result.app.pkg, result.app.versionName) ||
                         !dev.yyblite.install.ApkSignature.matchesInstalled(
                             this, result.app.signatureMd5, result.app.pkg
                         )
@@ -713,7 +716,8 @@ class MainActivity : AppCompatActivity() {
                             ) &&
                             dev.yyblite.install.ApkSignature.matchesInstalled(
                                 this, result.app.signatureMd5, result.app.pkg
-                            )
+                            ) &&
+                            !cache.isRegression(result.app.pkg, result.app.versionName)
                         ) {
                             RowItem(result.app, installed, true)
                         } else {
