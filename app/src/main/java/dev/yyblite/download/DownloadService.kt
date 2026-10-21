@@ -57,12 +57,21 @@ class DownloadService : Service() {
     }
 
     private val active = AtomicInteger(0)
-    private val downloader = SegmentDownloader(32)
+    private val downloader by lazy { SegmentDownloader(resolveSegments()) }
     private val installExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
         Thread(r, "dl-install").apply { isDaemon = true }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    /** 除錯版可用 Settings.Global 的 yyb_segments 調整單檔分段數。 */
+    private fun resolveSegments(): Int {
+        val debuggable = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (!debuggable) return 0
+        return runCatching {
+            android.provider.Settings.Global.getInt(contentResolver, "yyb_segments", 0)
+        }.getOrDefault(0).coerceIn(0, 512)
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -100,6 +109,7 @@ class DownloadService : Service() {
         expectedSignature: String?,
         sizeHint: Long
     ) {
+        val startedAt = System.currentTimeMillis()
         android.util.Log.i("YYBDL", "start $pkg $version $url")
         DownloadBus.publish(DownloadState(pkg, Phase.RUNNING, version = version, abi = abi, sizeHint = sizeHint))
         var total = -1L
@@ -134,6 +144,10 @@ class DownloadService : Service() {
 
             if (target.exists() && !target.delete()) throw IOException("無法覆寫舊檔")
             if (!part.renameTo(target)) throw IOException("無法重新命名下載檔")
+            android.util.Log.i(
+                "YYBDL",
+                "download done $pkg ${target.length()} bytes in ${System.currentTimeMillis() - startedAt}ms"
+            )
 
             if (!expectedSignature.isNullOrBlank()) {
                 val actual = ApkSignature.certificateMd5(this, target)

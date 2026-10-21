@@ -22,7 +22,11 @@ class RangeUnsupportedException(message: String) : IOException(message)
  * 以 HTTP Range 多段並行下載單一檔案。
  * 每個執行緒各自持有 RandomAccessFile，避免共享檔案指標競態。
  */
-class SegmentDownloader(private val segments: Int = 32) {
+class SegmentDownloader(private val segments: Int = 0) {
+
+    /** 0 = 依檔案大小自動決定：每 512KB 一段，32–256 段。 */
+    private fun autoSegments(total: Long): Int =
+        (total / (512 * 1024)).toInt().coerceIn(32, 256)
 
     fun totalSize(url: String): Long {
         val conn = open(url, range = "bytes=0-0")
@@ -54,7 +58,8 @@ class SegmentDownloader(private val segments: Int = 32) {
     ): File {
         if (endInclusive < start) throw IOException("區間無效")
         val length = endInclusive - start + 1
-        val count = segments.coerceAtLeast(1)
+        val effective = if (segments > 0) segments else autoSegments(length)
+        val count = effective.coerceAtLeast(1)
         val partLen = length / count
         if (partLen <= 0) throw IOException("區間太小，無法分段")
 
@@ -131,7 +136,8 @@ class SegmentDownloader(private val segments: Int = 32) {
             return sequential(url, expectedMd5, dest, onProgress)
         }
 
-        for (attempt in intArrayOf(this.segments, 8)) {
+        val primary = if (segments > 0) segments else autoSegments(total)
+        for (attempt in intArrayOf(primary, 8)) {
             try {
                 dest.delete()
                 RandomAccessFile(dest, "rw").use { it.setLength(total) }
