@@ -53,16 +53,21 @@ object RootInstaller {
         checkedAt = 0L
     }
 
-    fun install(files: List<File>): ShellResult {
+    fun install(files: List<File>, fastDexopt: Boolean = false): ShellResult {
         val apks = files.filter { it.exists() && it.name.endsWith(".apk", ignoreCase = true) }
         if (apks.isEmpty()) throw IOException("找不到 APK")
 
         // 與 Aurora 相同：以 session 安裝並標記安裝來源，支援多個 split。
         val total = apks.sumOf { it.length() }
         val userId = android.os.Process.myUid() / 100_000
-        val created = su(
-            "pm install-create -i $INSTALLER_PACKAGE --user $userId -r -d -S $total"
-        )
+        fun create(fast: Boolean): ShellResult {
+            val flag = if (fast) " --dexopt-compiler-filter skip" else ""
+            return su("pm install-create -i $INSTALLER_PACKAGE --user $userId -r -d -S $total$flag")
+        }
+        // 舊版 Android / 廠商 pm 可能不認得 --dexopt-compiler-filter，失敗時退回標準安裝。
+        val created = create(fastDexopt).let { first ->
+            if (!first.ok && fastDexopt) create(false) else first
+        }
         if (!created.ok) throw IOException(created.err.ifBlank { created.out }.ifBlank { "建立安裝工作階段失敗" })
         val sessionId = Regex("""\[(\d+)]""").find(created.out)?.groupValues?.get(1)?.toIntOrNull()
             ?: throw IOException("無法解析安裝工作階段：${created.out}")

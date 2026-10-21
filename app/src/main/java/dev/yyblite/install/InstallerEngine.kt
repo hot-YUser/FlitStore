@@ -60,23 +60,29 @@ object InstallerEngine {
         if (!inFlight.add(key)) {
             return InstallOutcome.Failed(InstallerKind.ROOT, "已在安裝中")
         }
+        val started = android.os.SystemClock.elapsedRealtime()
         try {
             val kind = resolve(ctx)
+            val fast = InstallerPrefs(ctx).dexoptMode == DexoptMode.FAST
             val outcome = when (kind) {
             InstallerKind.ROOT -> runCatching {
-                RootInstaller.install(files)
+                RootInstaller.install(files, fast)
                 InstallOutcome.Installed(InstallerKind.ROOT)
             }.getOrElse { e ->
                 InstallOutcome.Failed(InstallerKind.ROOT, e.message ?: "Root 安裝失敗")
             }
             InstallerKind.SHIZUKU -> runCatching {
-                ShizukuInstaller.install(files)
+                ShizukuInstaller.install(files, fast)
                 InstallOutcome.Installed(InstallerKind.SHIZUKU)
             }.getOrElse { e ->
                 InstallOutcome.Failed(InstallerKind.SHIZUKU, e.message ?: "Shizuku 安裝失敗")
             }
             InstallerKind.EXTERNAL -> InstallOutcome.Handoff
             }
+            android.util.Log.i(
+                "YYBLite",
+                "install ${files.firstOrNull()?.name} via $kind ${android.os.SystemClock.elapsedRealtime() - started}ms fast=$fast"
+            )
             if (outcome is InstallOutcome.Installed) ApkStore.delete(files)
             return outcome
         } finally {

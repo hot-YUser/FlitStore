@@ -62,6 +62,7 @@
     <string name="installer_shizuku_denied">Shizuku：已連線，尚未授權</string>
     <string name="installer_request_shizuku">請求 Shizuku 權限</string>
     <string name="installer_apply">套用</string>
+    <string name="installer_fast_dexopt">極速安裝（跳過 dexopt，首次啟動較慢）</string>
     <string name="installer_shizuku_not_running">Shizuku 未連線</string>
     <string name="installer_shizuku_ok">Shizuku 已授權</string>
     <string name="installer_shizuku_rejected">Shizuku 授權被拒</string>

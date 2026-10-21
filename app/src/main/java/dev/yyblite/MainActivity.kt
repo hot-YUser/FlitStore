@@ -666,6 +666,12 @@ class MainActivity : AppCompatActivity() {
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding((20 * density).toInt(), (8 * density).toInt(), (20 * density).toInt(), 0)
         }
+        val fastBox = android.widget.CheckBox(this).apply {
+            text = getString(R.string.installer_fast_dexopt)
+            textSize = 13f
+            isChecked = prefs.dexoptMode == dev.yyblite.install.DexoptMode.FAST
+            setPadding(0, (8 * density).toInt(), 0, (4 * density).toInt())
+        }
         val statusView = android.widget.TextView(this).apply {
             text = statusText
             textSize = 12f
@@ -685,6 +691,7 @@ class MainActivity : AppCompatActivity() {
         }
         container.addView(statusView)
         container.addView(group)
+        container.addView(fastBox)
 
         AlertDialog.Builder(this)
             .setTitle(R.string.installer_title)
@@ -692,6 +699,11 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(R.string.installer_apply) { _, _ ->
                 val selected = (group.checkedRadioButtonId - 1).coerceIn(0, modes.lastIndex)
                 prefs.mode = modes[selected]
+                prefs.dexoptMode = if (fastBox.isChecked) {
+                    dev.yyblite.install.DexoptMode.FAST
+                } else {
+                    dev.yyblite.install.DexoptMode.STANDARD
+                }
                 installerStatus = null
                 if (modes[selected] == InstallerMode.SHIZUKU &&
                     status.shizukuAlive && !status.shizukuGranted

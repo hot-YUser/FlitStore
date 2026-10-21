@@ -59,7 +59,9 @@ class DownloadService : Service() {
 
     private val active = AtomicInteger(0)
     private val downloader by lazy { SegmentDownloader(resolveSegments()) }
-    private val installExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+    // 實測 8 個 APK：1 條 33.5s、2 條 28.3s、4 條 29.1s；commit/dexopt 會互搶 CPU，
+    // 因此固定 2 條最能縮短整批安裝時間。
+    private val installExecutor = java.util.concurrent.Executors.newFixedThreadPool(2) { r ->
         Thread(r, "dl-install").apply { isDaemon = true }
     }
 

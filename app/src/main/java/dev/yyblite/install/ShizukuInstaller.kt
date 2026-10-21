@@ -29,7 +29,7 @@ object ShizukuInstaller {
         if (binderAlive()) Shizuku.requestPermission(REQUEST_CODE)
     }
 
-    fun install(files: List<File>): String {
+    fun install(files: List<File>, fastDexopt: Boolean = false): String {
         val apks = files.filter { it.exists() && it.name.endsWith(".apk", ignoreCase = true) }
         if (apks.isEmpty()) throw IOException("找不到 APK")
         val service = IShizukuService.Stub.asInterface(Shizuku.getBinder())
@@ -41,13 +41,17 @@ object ShizukuInstaller {
 
         val total = apks.sumOf { it.length() }
         val userId = (android.os.Process.myUid() / 100_000).toString()
-        val created = exec(
-            service,
-            arrayOf(
+        fun create(fast: Boolean): String {
+            val command = mutableListOf(
                 "pm", "install-create", "-i", INSTALLER_PACKAGE,
                 "--user", userId, "-r", "-d", "-S", total.toString()
             )
-        )
+            if (fast) command.addAll(listOf("--dexopt-compiler-filter", "skip"))
+            return exec(service, command.toTypedArray())
+        }
+        val created = runCatching { create(fastDexopt) }.getOrElse {
+            if (fastDexopt) create(false) else throw it
+        }
         val sessionId = Regex("""\[(\d+)]""").find(created)?.groupValues?.get(1)?.toIntOrNull()
             ?: throw IOException("建立安裝工作階段失敗：$created")
 
