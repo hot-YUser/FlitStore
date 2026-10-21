@@ -24,9 +24,9 @@ class RangeUnsupportedException(message: String) : IOException(message)
  */
 class SegmentDownloader(private val segments: Int = 0) {
 
-    /** 0 = 依檔案大小自動決定：約每 1.4MB 一段，32–160 段（實測 160 段最快）。 */
+    /** 0 = 依檔案大小自動決定：約每 2.4MB 一段，32–96 段（多輪實測 96 段最穩）。 */
     private fun autoSegments(total: Long): Int =
-        (total / 1_400_000L).toInt().coerceIn(32, 160)
+        (total / 2_400_000L).toInt().coerceIn(32, 96)
 
     fun totalSize(url: String): Long {
         val conn = open(url, range = "bytes=0-0")
