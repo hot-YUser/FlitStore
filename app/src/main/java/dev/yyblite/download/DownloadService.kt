@@ -173,7 +173,7 @@ class DownloadService : Service() {
     }
 
     private fun installDownloaded(target: File, pkg: String, name: String, version: String, abi: String) {
-        when (val outcome = InstallerEngine.install(this, target)) {
+        when (val outcome = InstallerEngine.install(this, listOf(target))) {
             is InstallOutcome.Installed ->
                 android.util.Log.i("YYBDL", "installed $pkg via ${outcome.via}")
             InstallOutcome.Handoff ->

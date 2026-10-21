@@ -8,6 +8,9 @@ import java.io.IOException
  * root 可直接讀取，不需要複製到 /data/local/tmp。
  */
 object RootInstaller {
+    /** 與 Aurora 相同，把安裝來源標記為 Play，讓套件維持「商店安裝」身分。 */
+    private const val INSTALLER_PACKAGE = "com.android.vending"
+
     private val SU_PATHS = listOf(
         "/system/bin/su", "/system/xbin/su", "/sbin/su",
         "/su/bin/su", "/debug_ramdisk/su"
@@ -42,23 +45,51 @@ object RootInstaller {
         }
     }
 
+    /** 最近一次 su 檢查結果；null 表示尚未檢查。 */
+    fun lastKnown(): Boolean? = granted
+
     fun invalidate() {
         granted = null
         checkedAt = 0L
     }
 
-    fun install(apk: File): ShellResult {
-        if (!apk.exists()) throw IOException("APK 不存在：${apk.name}")
-        val path = apk.absolutePath.replace("'", "'\\''")
-        val result = ShellExec.exec(
-            listOf("su", "-c", "pm install -r -d --user 0 '$path'"),
-            timeoutMs = 300_000
+    fun install(files: List<File>): ShellResult {
+        val apks = files.filter { it.exists() && it.name.endsWith(".apk", ignoreCase = true) }
+        if (apks.isEmpty()) throw IOException("找不到 APK")
+
+        // 與 Aurora 相同：以 session 安裝並標記安裝來源，支援多個 split。
+        val total = apks.sumOf { it.length() }
+        val userId = android.os.Process.myUid() / 100_000
+        val created = su(
+            "pm install-create -i $INSTALLER_PACKAGE --user $userId -r -S $total"
         )
-        if (!result.ok || !result.out.contains("Success", ignoreCase = true)) {
-            throw IOException(
-                result.err.ifBlank { result.out }.ifBlank { "pm install 失敗（exit ${result.code}）" }
-            )
+        if (!created.ok) throw IOException(created.err.ifBlank { created.out }.ifBlank { "建立安裝工作階段失敗" })
+        val sessionId = Regex("""\[(\d+)]""").find(created.out)?.groupValues?.get(1)?.toIntOrNull()
+            ?: throw IOException("無法解析安裝工作階段：${created.out}")
+
+        try {
+            for (apk in apks) {
+                val path = apk.absolutePath.replace("'", "'\\''")
+                val written = su(
+                    "cat '$path' | pm install-write -S ${apk.length()} $sessionId '${apk.name}'"
+                )
+                if (!written.ok) throw IOException(written.err.ifBlank { written.out })
+            }
+            val committed = su("pm install-commit $sessionId")
+            if (!committed.ok || !committed.out.contains("Success", ignoreCase = true)) {
+                throw IOException(
+                    committed.err.ifBlank { committed.out }
+                        .ifBlank { "pm install-commit 失敗（exit ${committed.code}）" }
+                )
+            }
+            return committed
+        } catch (e: Exception) {
+            runCatching { su("pm install-abandon $sessionId") }
+            throw e
         }
-        return result
     }
+
+    private fun su(command: String): ShellResult =
+        ShellExec.exec(listOf("su", "-c", command), timeoutMs = 300_000)
+
 }

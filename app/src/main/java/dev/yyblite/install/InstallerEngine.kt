@@ -23,6 +23,7 @@ data class InstallerStatus(
  * 使用者可在「安裝方式」手動指定；指定的通道不可用時依序退回下一個。
  */
 object InstallerEngine {
+    private val inFlight = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     fun resolve(ctx: Context): InstallerKind {
         val mode = InstallerPrefs(ctx).mode
@@ -46,23 +47,31 @@ object InstallerEngine {
         }
     }
 
-    /** 阻塞式安裝；請在背景執行緒呼叫。 */
-    fun install(ctx: Context, apk: File): InstallOutcome {
-        val kind = resolve(ctx)
-        return when (kind) {
+    /** 阻塞式安裝；請在背景執行緒呼叫。files 可包含 base APK 與 splits。 */
+    fun install(ctx: Context, files: List<File>): InstallOutcome {
+        val key = files.firstOrNull()?.nameWithoutExtension ?: "unknown"
+        if (!inFlight.add(key)) {
+            return InstallOutcome.Failed(InstallerKind.ROOT, "已在安裝中")
+        }
+        try {
+            val kind = resolve(ctx)
+            return when (kind) {
             InstallerKind.ROOT -> runCatching {
-                RootInstaller.install(apk)
+                RootInstaller.install(files)
                 InstallOutcome.Installed(InstallerKind.ROOT)
             }.getOrElse { e ->
                 InstallOutcome.Failed(InstallerKind.ROOT, e.message ?: "Root 安裝失敗")
             }
             InstallerKind.SHIZUKU -> runCatching {
-                ShizukuInstaller.install(apk)
+                ShizukuInstaller.install(files)
                 InstallOutcome.Installed(InstallerKind.SHIZUKU)
             }.getOrElse { e ->
                 InstallOutcome.Failed(InstallerKind.SHIZUKU, e.message ?: "Shizuku 安裝失敗")
             }
             InstallerKind.EXTERNAL -> InstallOutcome.Handoff
+            }
+        } finally {
+            inFlight.remove(key)
         }
     }
 
@@ -80,7 +89,7 @@ object InstallerEngine {
         return InstallerStatus(
             mode = mode,
             rootBinary = rootBinary,
-            rootGranted = null,
+            rootGranted = RootInstaller.lastKnown(),
             shizukuAlive = shizukuAlive,
             shizukuGranted = shizukuGranted,
             effective = effective

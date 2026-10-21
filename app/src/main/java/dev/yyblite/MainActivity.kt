@@ -412,7 +412,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun installDownloaded(file: java.io.File) {
         io.execute {
-            val outcome = InstallerEngine.install(this, file)
+            val outcome = InstallerEngine.install(this, listOf(file))
             runOnUiThread {
                 when (outcome) {
                     is InstallOutcome.Installed -> Toast.makeText(
@@ -449,8 +449,11 @@ class MainActivity : AppCompatActivity() {
         )
         val statusText = buildString {
             append(
-                if (status.rootBinary) getString(R.string.installer_root_status_yes)
-                else getString(R.string.installer_root_status_no)
+                when {
+                    status.rootGranted == true -> getString(R.string.installer_root_granted)
+                    status.rootBinary -> getString(R.string.installer_root_status_yes)
+                    else -> getString(R.string.installer_root_status_no)
+                }
             )
             append('\n')
             append(

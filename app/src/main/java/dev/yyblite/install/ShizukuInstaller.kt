@@ -15,6 +15,9 @@ import java.io.IOException
 object ShizukuInstaller {
     const val REQUEST_CODE = 4213
 
+    /** 與 Aurora 相同：安裝來源標記為 Play。 */
+    private const val INSTALLER_PACKAGE = "com.android.vending"
+
     fun binderAlive(): Boolean = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
 
     fun isGranted(): Boolean =
@@ -26,8 +29,9 @@ object ShizukuInstaller {
         if (binderAlive()) Shizuku.requestPermission(REQUEST_CODE)
     }
 
-    fun install(apk: File): String {
-        if (!apk.exists()) throw IOException("APK 不存在：${apk.name}")
+    fun install(files: List<File>): String {
+        val apks = files.filter { it.exists() && it.name.endsWith(".apk", ignoreCase = true) }
+        if (apks.isEmpty()) throw IOException("找不到 APK")
         val service = IShizukuService.Stub.asInterface(Shizuku.getBinder())
             ?: throw IOException("Shizuku 未連線")
         if (service.uid != 2000 && service.uid != 0) {
@@ -35,17 +39,29 @@ object ShizukuInstaller {
             throw IOException("Shizuku 權限異常（uid=${service.uid}）")
         }
 
-        val size = apk.length()
-        val created = exec(service, arrayOf("pm", "install-create", "-r", "-d", "-S", size.toString()))
+        val total = apks.sumOf { it.length() }
+        val userId = (android.os.Process.myUid() / 100_000).toString()
+        val created = exec(
+            service,
+            arrayOf(
+                "pm", "install-create", "-i", INSTALLER_PACKAGE,
+                "--user", userId, "-r", "-S", total.toString()
+            )
+        )
         val sessionId = Regex("""\[(\d+)]""").find(created)?.groupValues?.get(1)?.toIntOrNull()
             ?: throw IOException("建立安裝工作階段失敗：$created")
 
         try {
-            exec(
-                service,
-                arrayOf("pm", "install-write", "-S", size.toString(), sessionId.toString(), apk.name, "-"),
-                stdin = apk
-            )
+            for (apk in apks) {
+                exec(
+                    service,
+                    arrayOf(
+                        "pm", "install-write", "-S", apk.length().toString(),
+                        sessionId.toString(), apk.name, "-"
+                    ),
+                    stdin = apk
+                )
+            }
             exec(service, arrayOf("pm", "install-commit", sessionId.toString()))
         } catch (e: Exception) {
             runCatching { exec(service, arrayOf("pm", "install-abandon", sessionId.toString())) }

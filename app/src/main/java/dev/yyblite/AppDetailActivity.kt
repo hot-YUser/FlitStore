@@ -471,7 +471,7 @@ class AppDetailActivity : AppCompatActivity() {
     private fun installDownloaded(file: File) {
         android.util.Log.i("YYBLite", "install start ${file.name}")
         io.execute {
-            val outcome = InstallerEngine.install(this, file)
+            val outcome = InstallerEngine.install(this, listOf(file))
             android.util.Log.i("YYBLite", "install outcome: $outcome")
             runOnUiThread {
                 when (outcome) {
