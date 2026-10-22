@@ -111,7 +111,7 @@ class AppAdapter(
             }
             binding.subtitle.text = base + extra + cachedSuffix + errorLine
 
-            ThumbCache.load(item.store.iconUrl, binding.icon)
+            ThumbCache.load(ctx, item.store.iconUrl, item.store.pkg, binding.icon)
 
             val label = when {
                 state?.phase == Phase.RUNNING -> {

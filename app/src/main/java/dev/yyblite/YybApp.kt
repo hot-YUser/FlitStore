@@ -7,6 +7,7 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import dev.yyblite.work.UpdateNotifications
+import dev.yyblite.ui.ThumbCache
 import dev.yyblite.work.UpdateWorker
 import java.util.concurrent.TimeUnit
 
@@ -15,6 +16,7 @@ class YybApp : Application() {
         super.onCreate()
         dev.yyblite.data.ErrorLog.init(this)
         UpdateNotifications.ensureChannel(this)
+        ThumbCache.pruneIfDue(this)
         scheduleUpdateCheck()
     }
 

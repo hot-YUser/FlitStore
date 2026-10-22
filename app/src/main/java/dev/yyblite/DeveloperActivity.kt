@@ -153,7 +153,7 @@ class DeveloperActivity : AppCompatActivity() {
                 ).joinToString(" · ")
                 binding.check.isVisible = false
                 binding.action.isVisible = false
-                ThumbCache.load(app.iconUrl, binding.icon)
+                ThumbCache.load(binding.root.context, app.iconUrl, app.pkg, binding.icon)
                 binding.root.setOnClickListener { onClick(app) }
             }
         }

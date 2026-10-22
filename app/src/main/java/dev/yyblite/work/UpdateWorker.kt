@@ -12,6 +12,7 @@ import dev.yyblite.data.UpdateCache
 import dev.yyblite.data.UpdateChecker
 import dev.yyblite.data.UpdateDecision
 import dev.yyblite.install.ApkSignature
+import dev.yyblite.ui.ThumbCache
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -24,6 +25,7 @@ class UpdateWorker(context: Context, params: WorkerParameters) : Worker(context,
 
     override fun doWork(): Result {
         val ctx = applicationContext
+        ThumbCache.pruneIfDue(ctx)
         val installed = InstalledScanner.scan(ctx)
         android.util.Log.i("YYBLite", "worker start: ${installed.size} apps")
         if (installed.isEmpty()) return Result.success()

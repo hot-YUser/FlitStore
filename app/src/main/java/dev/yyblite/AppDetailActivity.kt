@@ -260,7 +260,7 @@ class AppDetailActivity : AppCompatActivity() {
         binding.official.setOnClickListener(null)
 
         binding.icon.setOnClickListener { store.iconUrl?.let(::openImage) }
-        ThumbCache.load(store.iconUrl, binding.icon)
+        ThumbCache.load(this, store.iconUrl, packageName, binding.icon)
 
         binding.screenshots.removeAllViews()
         binding.screenshots.isVisible = store.screenshots.isNotEmpty()
@@ -273,7 +273,7 @@ class AppDetailActivity : AppCompatActivity() {
                 marginStart = if (index == 0) 0 else gap
             }
             view.scaleType = ImageView.ScaleType.FIT_CENTER
-            ThumbCache.load(url, view)
+            ThumbCache.load(this, url, null, view)
             view.setOnClickListener { openImage(url) }
             binding.screenshots.addView(view)
         }
@@ -446,7 +446,7 @@ class AppDetailActivity : AppCompatActivity() {
         val view = ImageView(this)
         view.scaleType = ImageView.ScaleType.FIT_CENTER
         view.setBackgroundColor(android.graphics.Color.BLACK)
-        ThumbCache.load(url, view)
+        ThumbCache.load(this, url, null, view)
         view.setOnClickListener { dialog.dismiss() }
         dialog.setContentView(view)
         dialog.show()

@@ -51,6 +51,7 @@ import dev.yyblite.install.InstallerStatus
 import dev.yyblite.install.ShizukuInstaller
 import rikka.shizuku.Shizuku
 import dev.yyblite.ui.AppAdapter
+import dev.yyblite.ui.ThumbCache
 import dev.yyblite.ui.AppVisibility
 import dev.yyblite.ui.Format
 import dev.yyblite.ui.RowItem
@@ -326,6 +327,7 @@ class MainActivity : AppCompatActivity() {
         io.execute {
             val scanStart = System.currentTimeMillis()
             val installed = InstalledScanner.scan(this)
+            ThumbCache.preloadInstalled(this, installed.map { it.pkg })
             android.util.Log.i("YYBLite", "scan done ${installed.size} in ${System.currentTimeMillis() - scanStart}ms")
             scanned = installed
             scanLatch.countDown()
