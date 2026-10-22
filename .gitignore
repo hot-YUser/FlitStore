@@ -7,3 +7,6 @@ captures/
 .externalNativeBuild/
 .cxx/
 shot-*.png
+keystore/
+*.jks
+*.keystore
