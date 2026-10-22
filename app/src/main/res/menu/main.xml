@@ -15,6 +15,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_auto_update"
+        android:title="@string/menu_auto_update"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_installer"
         android:title="@string/installer_title"
         app:showAsAction="never" />

@@ -40,6 +40,16 @@
     <string name="ignore_forever">忽略此應用更新</string>
     <string name="ignore_clear">取消忽略</string>
     <string name="menu_ignored">已忽略的更新</string>
+    <string name="menu_auto_update">自動更新</string>
+    <string name="auto_update_title">背景自動更新</string>
+    <string name="auto_update_message">偵測到更新後自動下載並安裝，不再詢問。
+
+• 需要 Root 才能背景無感下載與安裝；沒有 Root 時只會發出更新通知。
+• 同一版本 12 小時內只嘗試一次，避免失敗後重複下載。
+• 背景檢查每 3 小時執行一次。</string>
+    <string name="auto_update_enable">開啟自動下載與安裝</string>
+    <string name="auto_update_running">正在背景自動更新應用程式</string>
+    <string name="auto_update_need_privilege">目前沒有 Root 或 Shizuku，將只會自動下載，安裝仍需手動確認</string>
     <string name="ignore_empty">沒有已忽略的項目</string>
     <string name="action_downloading">下載中 %1$d%%</string>
     <string name="action_queued">排隊中</string>

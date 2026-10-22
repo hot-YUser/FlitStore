@@ -78,7 +78,44 @@ class UpdateWorker(context: Context, params: WorkerParameters) : Worker(context,
         cache.markChecked(fingerprint)
 
         android.util.Log.i("YYBLite", "worker done: ${found.size} updates")
-        UpdateNotifications.show(ctx, found.sortedBy { it.name.lowercase() })
+
+        val auto = AutoUpdatePrefs(ctx)
+        val autoTargets = if (auto.enabled) {
+            found.filter { auto.shouldAttempt(it.pkg, it.versionName) }
+                .sortedBy { it.name.lowercase() }
+        } else {
+            emptyList()
+        }
+        if (autoTargets.isNotEmpty()) {
+            // 背景啟動前景服務在 Android 12+ 會受限；先讓 Worker 自己成為前景服務取得豁免。
+            promoteToForeground()
+            val started = AutoUpdate.start(ctx, autoTargets)
+            // 已自動接手的項目不再重複發「有更新」通知；啟動失敗的仍提示使用者。
+            UpdateNotifications.show(ctx, found.filterNot { it in started })
+        } else {
+            UpdateNotifications.show(ctx, found.sortedBy { it.name.lowercase() })
+        }
         return Result.success()
+    }
+
+    private fun promoteToForeground() {
+        val ctx = applicationContext
+        val notification = androidx.core.app.NotificationCompat
+            .Builder(ctx, "updates")
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setContentTitle(ctx.getString(dev.yyblite.R.string.auto_update_title))
+            .setContentText(ctx.getString(dev.yyblite.R.string.auto_update_running))
+            .setOngoing(true)
+            .build()
+        val info = if (android.os.Build.VERSION.SDK_INT >= 29) {
+            androidx.work.ForegroundInfo(
+                2002, notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            androidx.work.ForegroundInfo(2002, notification)
+        }
+        runCatching { setForegroundAsync(info).get(10, TimeUnit.SECONDS) }
+            .onFailure { android.util.Log.w("YYBLite", "worker foreground promotion failed", it) }
     }
 }

@@ -46,6 +46,7 @@ import dev.yyblite.install.InstallOutcome
 import dev.yyblite.install.InstallerEngine
 import dev.yyblite.install.InstallerKind
 import dev.yyblite.install.InstallerMode
+import dev.yyblite.work.AutoUpdatePrefs
 import dev.yyblite.install.InstallerPrefs
 import dev.yyblite.install.InstallerStatus
 import dev.yyblite.install.ShizukuInstaller
@@ -196,6 +197,10 @@ class MainActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         R.id.action_diagnostics -> {
             showDiagnostics()
+            true
+        }
+        R.id.action_auto_update -> {
+            showAutoUpdateDialog()
             true
         }
         R.id.action_installer -> {
@@ -628,6 +633,41 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun showAutoUpdateDialog() {
+        val prefs = AutoUpdatePrefs(this)
+        val density = resources.displayMetrics.density
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding((20 * density).toInt(), (8 * density).toInt(), (20 * density).toInt(), 0)
+        }
+        container.addView(android.widget.TextView(this).apply {
+            text = getString(R.string.auto_update_message)
+            textSize = 13f
+            setTextColor(androidx.core.content.ContextCompat.getColor(this@MainActivity, android.R.color.darker_gray))
+        })
+        val check = android.widget.CheckBox(this).apply {
+            text = getString(R.string.auto_update_enable)
+            textSize = 14f
+            isChecked = prefs.enabled
+            setPadding(0, (12 * density).toInt(), 0, 0)
+        }
+        container.addView(check)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.auto_update_title)
+            .setView(container)
+            .setPositiveButton(R.string.installer_apply) { _, _ ->
+                prefs.enabled = check.isChecked
+                if (check.isChecked) {
+                    val status = InstallerEngine.status(this)
+                    if (status.rootGranted != true && !status.shizukuGranted) {
+                        Toast.makeText(this, R.string.auto_update_need_privilege, Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun showInstallerDialog() {
