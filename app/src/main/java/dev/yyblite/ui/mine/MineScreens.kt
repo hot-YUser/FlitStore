@@ -1,9 +1,12 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package dev.yyblite.ui.mine
 
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
+import androidx.core.net.toUri
 import android.os.Build
 import android.provider.Settings
 import android.view.ViewTreeObserver
@@ -189,7 +192,7 @@ fun DownloadsScreen() {
                         InstalledRow(
                             pkg = pkg,
                             label = name,
-                            supporting = Format.size(context, file.length()) + " · " + Format.relative(file.lastModified()),
+                            supporting = Format.size(context, file.length()) + " · " + Format.relative(context, file.lastModified()),
                             onClick = { actions.install(pkg, file) }
                         ) {
                             IconButton(onClick = {
@@ -359,38 +362,36 @@ fun SettingsScreen() {
                     auto = it
                     settings.autoUpdate = it
                     if (it && status?.rootGranted != true && status?.shizukuGranted != true) {
-                        actions.message(context.getString(R.string.settings_auto_update_no_privilege))
+                        actions.message(R.string.settings_auto_update_no_privilege)
                     }
                 }
             }
             item {
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_overlay)) },
+                    onClick = {
+                        context.startActivity(
+                            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:${context.packageName}".toUri())
+                        )
+                    },
                     supportingContent = {
                         Text(stringResource(if (overlay) R.string.settings_overlay_on else R.string.settings_overlay_off))
                     },
-                    trailingContent = { Glyph(R.drawable.ic_open_in_new) },
-                    modifier = Modifier.clickable {
-                        context.startActivity(
-                            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
-                        )
-                    }
-                )
+                    trailingContent = { Glyph(R.drawable.ic_open_in_new) }
+                ) { Text(stringResource(R.string.settings_overlay)) }
             }
             if (Build.VERSION.SDK_INT >= 33) {
                 item { SectionHeader(stringResource(R.string.settings_general)) }
                 item {
                     ListItem(
-                        headlineContent = { Text(stringResource(R.string.settings_language)) },
-                        supportingContent = { Text(stringResource(R.string.settings_language_hint)) },
-                        leadingContent = { Glyph(R.drawable.ic_language) },
-                        trailingContent = { Glyph(R.drawable.ic_open_in_new) },
-                        modifier = Modifier.clickable {
+                        onClick = {
                             context.startActivity(
                                 Intent(Settings.ACTION_APP_LOCALE_SETTINGS, Uri.fromParts("package", context.packageName, null))
                             )
-                        }
-                    )
+                        },
+                        supportingContent = { Text(stringResource(R.string.settings_language_hint)) },
+                        leadingContent = { Glyph(R.drawable.ic_language) },
+                        trailingContent = { Glyph(R.drawable.ic_open_in_new) }
+                    ) { Text(stringResource(R.string.settings_language)) }
                 }
             }
         }
@@ -420,21 +421,22 @@ private fun modeStatus(mode: InstallerMode, status: InstallerStatus?): String = 
 @Composable
 private fun RadioRow(@StringRes label: Int, supporting: String, selected: Boolean, onClick: () -> Unit) {
     ListItem(
-        headlineContent = { Text(stringResource(label)) },
+        selected = selected,
+        onClick = onClick,
         supportingContent = { Text(supporting) },
         leadingContent = { RadioButton(selected = selected, onClick = null) },
-        modifier = Modifier.clickable(onClick = onClick)
-    )
+        modifier = Modifier.padding(horizontal = 8.dp)
+    ) { Text(stringResource(label)) }
 }
 
 @Composable
 private fun SwitchRow(@StringRes title: Int, @StringRes hint: Int, checked: Boolean, onChange: (Boolean) -> Unit) {
     ListItem(
-        headlineContent = { Text(stringResource(title)) },
+        checked = checked,
+        onCheckedChange = onChange,
         supportingContent = { Text(stringResource(hint)) },
-        trailingContent = { Switch(checked = checked, onCheckedChange = null) },
-        modifier = Modifier.clickable { onChange(!checked) }
-    )
+        trailingContent = { Switch(checked = checked, onCheckedChange = null) }
+    ) { Text(stringResource(title)) }
 }
 
 /** 從系統設定頁回來時視窗重新取得焦點，借此刷新授權狀態，不需要額外的 lifecycle 函式庫。 */
@@ -460,7 +462,7 @@ fun DiagnosticsScreen() {
             if (lines.isNotEmpty()) {
                 IconButton(onClick = {
                     context.getSystemService<ClipboardManager>()?.setPrimaryClip(ClipData.newPlainText("diagnostics", ErrorLog.text()))
-                    actions.message(context.getString(R.string.diagnostics_copied))
+                    actions.message(R.string.diagnostics_copied)
                 }) { Glyph(R.drawable.ic_content_copy, contentDescription = stringResource(R.string.action_copy)) }
                 IconButton(onClick = ErrorLog::clear) {
                     Glyph(R.drawable.ic_delete, contentDescription = stringResource(R.string.action_clear))
@@ -536,7 +538,7 @@ fun AboutScreen() {
                 "Shizuku API" to "MIT License"
             )
             items(licenses) { (name, license) ->
-                ListItem(headlineContent = { Text(name) }, supportingContent = { Text(license) })
+                ListItem(supportingContent = { Text(license) }) { Text(name) }
             }
         }
     }

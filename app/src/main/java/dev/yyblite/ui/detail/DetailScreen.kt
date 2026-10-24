@@ -4,7 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import android.icu.text.CompactDecimalFormat
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -171,7 +171,7 @@ private fun DetailMenu(app: StoreApp, status: AppStatus, expanded: Boolean, onDi
             leadingIcon = { Glyph(R.drawable.ic_content_copy) },
             onClick = {
                 context.getSystemService<ClipboardManager>()?.setPrimaryClip(ClipData.newPlainText("package", app.pkg))
-                actions.message(context.getString(R.string.detail_package_copied))
+                actions.message(R.string.detail_package_copied)
                 onDismiss()
             }
         )
@@ -180,7 +180,7 @@ private fun DetailMenu(app: StoreApp, status: AppStatus, expanded: Boolean, onDi
             leadingIcon = { Glyph(R.drawable.ic_open_in_new) },
             onClick = {
                 runCatching {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://sj.qq.com/appdetail/${app.pkg}")))
+                    context.startActivity(Intent(Intent.ACTION_VIEW, "https://sj.qq.com/appdetail/${app.pkg}".toUri()))
                 }
                 onDismiss()
             }
@@ -215,8 +215,9 @@ private fun DetailContent(
                 Ratings(page) { navigator.push(Route.Reviews(app.pkg, app.name)) }
             }
         }
-        if (!detail?.sameDeveloper.isNullOrEmpty()) {
-            item(key = "dev") { SameDeveloper(app, detail!!.sameDeveloper) }
+        val sameDeveloper = detail?.sameDeveloper.orEmpty()
+        if (sameDeveloper.isNotEmpty()) {
+            item(key = "dev") { SameDeveloper(app, sameDeveloper) }
         }
         item(key = "info") { Info(app, detail) }
     }
@@ -566,7 +567,7 @@ private fun Info(app: StoreApp, detail: StoreDetail?) {
         }
         InfoRow(stringResource(R.string.detail_package), app.pkg) {
             context.getSystemService<ClipboardManager>()?.setPrimaryClip(ClipData.newPlainText("package", app.pkg))
-            actions.message(context.getString(R.string.detail_package_copied))
+            actions.message(R.string.detail_package_copied)
         }
     }
 }

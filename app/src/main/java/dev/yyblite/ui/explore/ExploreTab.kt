@@ -92,6 +92,7 @@ fun ExploreTab(bottom: PaddingValues) {
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .fillMaxWidth()
                 .height(56.dp)
+                .sharedIcon("search-bar")
         ) {
             Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Glyph(R.drawable.ic_search)

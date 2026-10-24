@@ -19,8 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -34,7 +33,7 @@ import dev.yyblite.ui.nav.Route
 fun ScreenshotsScreen(route: Route.Screenshots) {
     val navigator = LocalNavigator.current
     val pager = rememberPagerState(initialPage = route.start) { route.urls.size }
-    val px = with(LocalDensity.current) { LocalConfiguration.current.screenHeightDp.dp.roundToPx() }
+    val px = LocalWindowInfo.current.containerSize.height
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         HorizontalPager(pager, Modifier.fillMaxSize()) { page ->
             val image = rememberImage(route.urls[page], px)

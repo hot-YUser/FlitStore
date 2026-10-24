@@ -85,7 +85,7 @@ class InstallManager(private val ctx: Context, private val settings: Settings) {
     fun downgradeInfo(file: File): DowngradeInfo? {
         val pm = ctx.packageManager
         val archive = pm.getPackageArchiveInfo(file.absolutePath, 0) ?: return null
-        val pkg = archive.packageName ?: return null
+        val pkg = archive.packageName
         val installed = try {
             @Suppress("DEPRECATION")
             pm.getPackageInfo(pkg, 0)

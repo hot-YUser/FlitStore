@@ -145,7 +145,7 @@ fun UpdatesTab(bottom: PaddingValues) {
                             val subtitle = when {
                                 state.scanning -> stringResource(R.string.status_scanning)
                                 state.checking -> stringResource(R.string.status_checking, state.progress, state.total)
-                                state.checkedAt > 0 -> stringResource(R.string.status_checked_at, Format.relative(state.checkedAt))
+                                state.checkedAt > 0 -> stringResource(R.string.status_checked_at, Format.relative(context, state.checkedAt))
                                 else -> null
                             }
                             if (subtitle != null) {

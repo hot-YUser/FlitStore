@@ -2,7 +2,6 @@ package dev.yyblite.ui.mine
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -84,8 +84,11 @@ fun MineTab(bottom: PaddingValues) {
                 Entry(
                     R.drawable.ic_download_done,
                     stringResource(R.string.mine_downloads),
-                    if (active > 0) pluralStringResource(R.plurals.downloads_active, active, active)
-                    else stringResource(R.string.mine_downloads_stored, Format.size(context, stored))
+                    when {
+                        active > 0 -> pluralStringResource(R.plurals.downloads_active, active, active)
+                        stored > 0 -> stringResource(R.string.mine_downloads_stored, Format.size(context, stored))
+                        else -> stringResource(R.string.downloads_empty)
+                    }
                 ) { navigator.push(Route.Downloads) }
             }
             item {
@@ -160,16 +163,17 @@ private fun InstallerCard(status: InstallerStatus?, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun Entry(@DrawableRes icon: Int, title: String, supporting: String, onClick: () -> Unit) {
     ListItem(
-        headlineContent = { Text(title) },
+        onClick = onClick,
         supportingContent = { Text(supporting) },
         leadingContent = { Glyph(icon) },
         trailingContent = { Glyph(R.drawable.ic_chevron_right) },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 4.dp)
-    )
+        modifier = Modifier.padding(horizontal = 4.dp)
+    ) { Text(title) }
 }
 
 fun appVersion(context: android.content.Context): String =

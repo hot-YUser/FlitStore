@@ -3,7 +3,7 @@ package dev.yyblite
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
+import androidx.core.net.toUri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -12,7 +12,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -21,6 +20,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -160,7 +160,9 @@ private fun App(activity: ComponentActivity, model: MainModel) {
         LocalDownloads provides downloads,
         LocalActions provides actions
     ) {
-        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+        // Surface 提供底色與 LocalContentColor，沒有自己 Scaffold 的頁面（搜尋）文字顏色才會正確。
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+        Box(Modifier.fillMaxSize()) {
             NavHost(navigator) { entry ->
                 when (val route = entry.route) {
                     Route.Home -> HomeScreen(model.tab) { model.tab = it }
@@ -185,6 +187,7 @@ private fun App(activity: ComponentActivity, model: MainModel) {
                     .navigationBarsPadding()
                     .padding(bottom = if (navigator.stack.size == 1) 80.dp else 0.dp)
             )
+        }
         }
 
         dialogs.downgrade?.let { (info, confirm) ->
@@ -238,7 +241,7 @@ private fun OverlayPrompt(activity: ComponentActivity, offered: Boolean) {
         confirmButton = {
             TextButton(onClick = {
                 show = false
-                activity.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${activity.packageName}")))
+                activity.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:${activity.packageName}".toUri()))
             }) { Text(stringResource(R.string.overlay_open)) }
         },
         dismissButton = { TextButton(onClick = { show = false }) { Text(stringResource(R.string.overlay_later)) } }

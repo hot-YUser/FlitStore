@@ -1,8 +1,8 @@
 package dev.yyblite.install
 
+import android.os.SystemClock
 import java.io.File
 import java.io.IOException
-import java.util.concurrent.TimeUnit
 
 data class ShellResult(val code: Int, val out: String, val err: String) {
     val ok: Boolean get() = code == 0
@@ -30,13 +30,27 @@ object ShellExec {
                 runCatching { process.outputStream.close() }
             }
             val out = process.inputStream.bufferedReader().use { it.readText() }.trim()
-            if (!process.waitFor(timeoutMs, TimeUnit.MILLISECONDS)) {
-                throw IOException("command timed out: ${argv.firstOrNull()}")
-            }
+            val code = waitFor(process, timeoutMs) ?: throw IOException("command timed out: ${argv.firstOrNull()}")
             errThread.join(2000)
-            return ShellResult(process.exitValue(), out, errBuffer.toString().trim())
+            return ShellResult(code, out, errBuffer.toString().trim())
         } finally {
-            if (process.isAlive) process.destroyForcibly()
+            if (exitCode(process) == null) process.destroy()
         }
+    }
+
+    /** `Process.waitFor(timeout)` 要 API 26；minSdk 24 以輪詢 exitValue 實作，逾時回 null。 */
+    private fun waitFor(process: Process, timeoutMs: Long): Int? {
+        val deadline = SystemClock.elapsedRealtime() + timeoutMs
+        while (true) {
+            exitCode(process)?.let { return it }
+            if (SystemClock.elapsedRealtime() >= deadline) return null
+            Thread.sleep(20)
+        }
+    }
+
+    private fun exitCode(process: Process): Int? = try {
+        process.exitValue()
+    } catch (_: IllegalThreadStateException) {
+        null
     }
 }

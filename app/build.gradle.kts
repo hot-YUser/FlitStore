@@ -28,6 +28,16 @@ android {
         compose = true
     }
 
+    // 依 values-* 資料夾自動產生 localeConfig，Android 13+ 的「個別應用程式語言」據此列出可選語言。
+    androidResources {
+        generateLocaleConfig = true
+    }
+
+    // 新增介面字串時，三種語言必須同時補齊，漏翻在建置時就擋下。
+    lint {
+        error += "MissingTranslation"
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -67,7 +77,7 @@ dependencies {
     implementation("androidx.compose.material3:material3:1.5.0-beta02")
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.core:core-ktx:1.19.1")
-    implementation("androidx.work:work-runtime:2.11.2")
+    implementation("androidx.work:work-runtime:2.12.0")
     // Compose 已帶入 coroutines，這裡只為編譯期可見。
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 

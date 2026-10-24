@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 分頁與探索 -->
+    <string name="tab_explore">探索</string>
+    <string name="tab_updates">更新</string>
+    <string name="tab_mine">我的</string>
+    <string name="explore_for_you">推薦</string>
+    <string name="explore_apps">應用</string>
+    <string name="explore_games">遊戲</string>
+    <string name="search_hint">搜尋應用和遊戲</string>
+    <string name="search_history">最近搜尋</string>
+    <string name="search_empty">找不到「%1$s」</string>
+    <string name="section_editor_choice">精選遊戲</string>
+    <string name="section_top_games">熱門遊戲榜</string>
+    <string name="section_popular_apps">流行應用榜</string>
+    <string name="section_new_games">新品遊戲榜</string>
+    <string name="section_trending_apps">熱門應用</string>
+    <string name="category_all">全部</string>
+    <string name="list_empty">這裡還沒有內容</string>
+
+    <!-- 動作 -->
+    <string name="action_back">返回</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_cert_mismatch">簽章不符</string>
+    <string name="action_clear">清除</string>
+    <string name="action_close">關閉</string>
+    <string name="action_collapse">收合</string>
+    <string name="action_copy">複製</string>
+    <string name="action_delete">刪除</string>
+    <string name="action_expand">展開</string>
+    <string name="action_install">安裝</string>
+    <string name="action_more">更多選項</string>
+    <string name="action_open">開啟</string>
+    <string name="action_refresh">重新整理</string>
+    <string name="action_retry">重試</string>
+    <string name="action_see_all">查看全部</string>
+    <string name="action_update">更新</string>
+    <string name="action_update_all">全部更新</string>
+
+    <!-- 狀態 -->
+    <string name="status_scanning">正在掃描已安裝的應用…</string>
+    <string name="status_checking">正在檢查 %1$d/%2$d</string>
+    <string name="status_checked_at">%1$s檢查</string>
+    <string name="status_detecting">偵測中…</string>
+    <string name="status_queued">等待中…</string>
+    <string name="status_downloading_percent">下載中 %1$d%%</string>
+    <string name="status_verifying">驗證中…</string>
+    <string name="status_installing">安裝中…</string>
+    <string name="status_ready">已下載・點「安裝」完成</string>
+    <string name="status_cancelled">已取消</string>
+
+    <!-- 更新 -->
+    <string name="updates_none_title">全部都是最新版本</string>
+    <plurals name="updates_none_body">
+        <item quantity="other">已檢查 %1$d 個應用</item>
+    </plurals>
+    <plurals name="updates_available">
+        <item quantity="other">%1$d 個可更新</item>
+    </plurals>
+    <string name="updates_total_size">共 %1$s</string>
+    <string name="updates_blocked">需要手動處理</string>
+    <string name="updates_failed">檢查失敗（%1$d）</string>
+    <plurals name="selected_count">
+        <item quantity="other">已選取 %1$d 項</item>
+    </plurals>
+    <string name="version_arrow">%1$s → %2$s</string>
+    <string name="version_new_build">%1$s・新建置 %2$d</string>
+    <string name="version_cert_mismatch">%1$s・簽章不符</string>
+    <string name="ignore_once">忽略此版本</string>
+    <string name="ignore_forever">永遠忽略此應用</string>
+    <string name="ignore_clear">取消忽略</string>
+
+    <!-- 我的 -->
+    <string name="mine_installed">已安裝的應用</string>
+    <string name="mine_downloads">下載管理</string>
+    <string name="mine_downloads_stored">已存放 %1$s</string>
+    <string name="mine_ignored">已忽略的更新</string>
+    <string name="mine_settings">設定</string>
+    <string name="mine_settings_hint">安裝方式、自動更新、語言</string>
+    <string name="mine_diagnostics">診斷記錄</string>
+    <string name="mine_about">關於</string>
+    <plurals name="apps_count">
+        <item quantity="other">%1$d 個應用</item>
+    </plurals>
+    <plurals name="downloads_active">
+        <item quantity="other">%1$d 個進行中</item>
+    </plurals>
+    <plurals name="log_count">
+        <item quantity="other">%1$d 筆</item>
+    </plurals>
+    <string name="installed_filter">依名稱或套件名稱篩選</string>
+    <string name="state_latest">已是最新</string>
+    <string name="state_update">可更新到 %1$s</string>
+    <string name="state_ignored">已忽略更新</string>
+    <string name="state_cert_mismatch">簽章不符</string>
+    <string name="state_regression">商店版本較舊</string>
+    <string name="state_not_in_store">商店未收錄</string>
+    <string name="state_check_failed">檢查失敗</string>
+    <string name="state_pending">尚未檢查</string>
+    <string name="downloads_empty">沒有下載項目</string>
+    <string name="downloads_stored">已下載的 APK</string>
+    <string name="downloads_clear">刪除所有下載</string>
+    <string name="downloads_clear_message">已下載的 APK 檔案會被刪除，進行中的下載不受影響。</string>
+    <string name="ignored_empty">沒有已忽略的更新</string>
+    <string name="ignored_forever">永遠忽略</string>
+    <string name="ignored_version">略過 %1$s</string>
+    <string name="diagnostics_empty">目前沒有錯誤記錄</string>
+    <string name="diagnostics_copied">已複製診斷記錄</string>
+    <string name="about_version">版本 %1$s</string>
+    <string name="about_tagline">輕巧、快速的應用寶客戶端。</string>
+    <string name="about_licenses">開放原始碼授權</string>
+
+    <!-- 安裝方式 -->
+    <string name="installer_current">安裝方式：%1$s</string>
+    <string name="installer_silent">在背景直接安裝，不需確認</string>
+    <string name="installer_confirm_each">每次都在安裝器中確認</string>
+    <string name="installer_auto">自動</string>
+    <string name="installer_auto_hint">Root → Shizuku → 外部安裝器</string>
+    <string name="installer_root">Root</string>
+    <string name="installer_root_granted">已授權</string>
+    <string name="installer_root_detected">偵測到 su・首次安裝時會請求授權</string>
+    <string name="installer_root_missing">無法使用</string>
+    <string name="installer_shizuku">Shizuku</string>
+    <string name="installer_shizuku_granted">已授權</string>
+    <string name="installer_shizuku_denied">已啟動・尚未授權</string>
+    <string name="installer_shizuku_missing">未安裝或未啟動</string>
+    <string name="installer_external">外部安裝器</string>
+    <string name="installer_external_hint">InstallerX 或系統安裝器</string>
+    <string name="installer_request_shizuku">授予 Shizuku 權限</string>
+    <string name="installed_via_root">已透過 Root 安裝</string>
+    <string name="installed_via_shizuku">已透過 Shizuku 安裝</string>
+
+    <!-- 設定 -->
+    <string name="settings_install">安裝</string>
+    <string name="settings_fast_install">極速安裝</string>
+    <string name="settings_fast_install_hint">跳過 dexopt，更新後第一次開啟會慢一些</string>
+    <string name="settings_updates">更新</string>
+    <string name="settings_auto_update">自動更新</string>
+    <string name="settings_auto_update_hint">每 3 小時檢查一次並在背景安裝。無感安裝需要 Root 或 Shizuku；同一版本 12 小時內最多嘗試一次。</string>
+    <string name="settings_auto_update_no_privilege">沒有 Root 或 Shizuku 時只會自動下載，安裝仍需要你確認</string>
+    <string name="settings_overlay">允許背景開啟安裝器</string>
+    <string name="settings_overlay_on">已允許</string>
+    <string name="settings_overlay_off">未允許・只有外部安裝器需要</string>
+    <string name="settings_general">一般</string>
+    <string name="settings_language">語言</string>
+    <string name="settings_language_hint">跟隨系統，或為這個應用另選語言</string>
+    <string name="auto_update_title">自動更新</string>
+
+    <!-- 詳情 -->
+    <string name="detail_about">關於這個應用</string>
+    <string name="detail_abi">架構</string>
+    <string name="detail_abi64">arm64-v8a（64 位元）</string>
+    <string name="detail_abi32">armeabi-v7a（32 位元）</string>
+    <string name="detail_category">分類</string>
+    <string name="detail_cert_mismatch">商店 APK 的簽章與已安裝的不同，需要先解除安裝才能安裝這個版本。</string>
+    <string name="detail_copy_package">複製套件名稱</string>
+    <string name="detail_developer">開發者</string>
+    <string name="detail_downloads">下載次數</string>
+    <string name="detail_icp">備案號</string>
+    <string name="detail_ignored">已忽略版本 %1$s</string>
+    <string name="detail_info">應用資訊</string>
+    <string name="detail_not_in_store">商店未收錄這個應用</string>
+    <string name="detail_official">官方認證</string>
+    <string name="detail_open_web">在瀏覽器開啟</string>
+    <string name="detail_operator">運營商</string>
+    <string name="detail_package">套件名稱</string>
+    <string name="detail_package_copied">已複製套件名稱</string>
+    <string name="detail_rating">評分</string>
+    <string name="detail_ratings">評分與評論</string>
+    <string name="detail_regression">商店的版本比已安裝的舊，已略過這次更新</string>
+    <string name="detail_same_developer">同開發者的其他應用</string>
+    <string name="detail_size">大小</string>
+    <string name="detail_up_to_date">已是最新・%1$s</string>
+    <string name="detail_updated">更新日期</string>
+    <string name="detail_version">版本</string>
+    <string name="detail_version_line">版本 %1$s</string>
+    <plurals name="rating_count">
+        <item quantity="other">%1$s 則評分</item>
+    </plurals>
+    <plurals name="reviews_count">
+        <item quantity="other">%1$s 則評論</item>
+    </plurals>
+    <string name="reviews_title">評論・%1$s</string>
+    <string name="reviews_all">全部</string>
+    <string name="reviews_latest">最新</string>
+    <string name="reviews_positive">好評</string>
+    <string name="reviews_neutral">中評</string>
+    <string name="reviews_negative">差評</string>
+    <string name="reviews_empty">還沒有評論</string>
+    <string name="reviews_anonymous">匿名</string>
+
+    <!-- 對話框 -->
+    <string name="downgrade_title">要安裝較舊的版本嗎？</string>
+    <string name="downgrade_message">這個 APK 比已安裝的版本舊：\n已安裝 %1$s（%2$d）\n此 APK %3$s（%4$d）\n\n降級可能造成資料遺失或功能異常。</string>
+    <string name="downgrade_confirm">仍要安裝</string>
+    <string name="overlay_title">下載完成就安裝</string>
+    <string name="overlay_message">Android 會阻擋從背景開啟安裝器。允許「顯示在其他應用程式上層」後，背景下載完成也能立刻開啟安裝器。</string>
+    <string name="overlay_open">前往設定</string>
+    <string name="overlay_later">稍後</string>
+
+    <!-- 通知 -->
+    <string name="channel_downloads">下載</string>
+    <string name="channel_install">安裝</string>
+    <string name="channel_updates">更新提醒</string>
+    <string name="notification_preparing">準備下載</string>
+    <plurals name="notification_downloading">
+        <item quantity="other">正在下載 %1$d 個應用</item>
+    </plurals>
+    <plurals name="notification_updates">
+        <item quantity="other">%1$d 個應用可更新</item>
+    </plurals>
+    <string name="notification_updates_more">%1$s 等 %2$d 個</string>
+    <string name="notification_ready">可以安裝了：%1$s</string>
+    <string name="notification_ready_hint">點一下安裝 %1$s</string>
+    <string name="notification_failed">失敗：%1$s</string>
+    <string name="notification_auto_update_running">正在背景更新應用</string>
+
+    <!-- 錯誤 -->
+    <string name="error_cannot_open">無法開啟這個應用</string>
+    <string name="error_checksum">下載的檔案損毀（校驗碼不符），請再試一次。</string>
+    <string name="error_file_missing">找不到已下載的檔案</string>
+    <string name="error_generic">發生錯誤：%1$s</string>
+    <string name="error_http">伺服器回應 HTTP %1$d</string>
+    <string name="error_install">安裝失敗：%1$s</string>
+    <string name="error_installer_missing">找不到可用的安裝器</string>
+    <string name="error_network">網路錯誤，請檢查連線。</string>
+    <string name="error_network_detail">網路錯誤：%1$s</string>
+    <string name="error_no_download">商店沒有提供這個應用的下載</string>
+    <string name="error_offline">目前沒有網路連線</string>
+    <string name="error_signature">檔案簽章與商店不符</string>
+    <string name="error_signature_unreadable">無法讀取 APK 簽章</string>
+    <string name="error_storage">儲存空間無法使用</string>
+    <string name="error_store_format">商店回傳了無法解析的資料</string>
+    <string name="error_store_regression">商店版本較舊（APK %1$d &lt; 已安裝 %2$d），已略過</string>
+    <string name="error_throttled">商店下載伺服器忙碌中，請稍後再試。</string>
+    <string name="error_timeout">連線逾時</string>
+    <string name="error_unknown">未知錯誤</string>
+
+    <string name="value_speed">%1$s/s</string>
+    <string name="value_unknown">未知</string>
+    <string name="time_just_now">剛剛</string>
+</resources>

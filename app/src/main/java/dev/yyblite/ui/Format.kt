@@ -23,8 +23,12 @@ object Format {
     fun date(epochSeconds: Long): String =
         if (epochSeconds <= 0) "" else DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(epochSeconds * 1000))
 
-    fun relative(epochMillis: Long): String =
-        DateUtils.getRelativeTimeSpanString(epochMillis, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+    /** 一分鐘內顯示「剛剛」，其餘交給系統依語系產生「5 分鐘前」之類的字串。 */
+    fun relative(ctx: Context, epochMillis: Long): String {
+        val now = System.currentTimeMillis()
+        if (now - epochMillis < DateUtils.MINUTE_IN_MILLIS) return ctx.getString(R.string.time_just_now)
+        return DateUtils.getRelativeTimeSpanString(epochMillis, now, DateUtils.MINUTE_IN_MILLIS).toString()
+    }
 
     fun rating(value: Double): String = String.format(Locale.getDefault(), "%.1f", value)
 }

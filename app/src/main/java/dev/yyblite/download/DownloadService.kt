@@ -47,9 +47,11 @@ class DownloadService : Service() {
         fun refresh(states: Map<String, DownloadState>) {
             val service = instance ?: return
             if (states.values.none { it.active }) return
-            runCatching {
+            try {
                 NotificationManagerCompat.from(service)
                     .notify(Notifications.ID_DOWNLOADS, Notifications.downloads(service, states))
+            } catch (_: SecurityException) {
+                // 通知權限被拒：前景服務照常運作，只是看不到進度。
             }
         }
 

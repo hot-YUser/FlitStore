@@ -6,7 +6,9 @@ import android.graphics.BitmapFactory
 import android.util.Log
 import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.content.edit
 import androidx.core.graphics.drawable.toBitmap
 import dev.yyblite.core.net.Http
 import java.io.File
@@ -27,9 +29,10 @@ object ThumbCache {
     private const val FRESH_MS = 7L * 24 * 60 * 60 * 1000
     private const val PRUNE_INTERVAL_MS = 12L * 60 * 60 * 1000
     private const val ICON_PX = 144
+    private const val LARGE_PX = 400
 
     private val mem = object : LruCache<String, ImageBitmap>(MAX_MEM_BYTES) {
-        override fun sizeOf(key: String, value: ImageBitmap): Int = value.width * value.height * 4
+        override fun sizeOf(key: String, value: ImageBitmap): Int = value.asAndroidBitmap().allocationByteCount
     }
     private val installedIcons = object : LruCache<String, ImageBitmap>(128) {}
 
@@ -78,7 +81,7 @@ object ThumbCache {
         val prefs = ctx.getSharedPreferences("thumb_cache", Context.MODE_PRIVATE)
         val now = System.currentTimeMillis()
         if (now - prefs.getLong("last_prune", 0L) < PRUNE_INTERVAL_MS) return
-        prefs.edit().putLong("last_prune", now).apply()
+        prefs.edit { putLong("last_prune", now) }
         diskPool.execute { prune(ctx) }
     }
 
@@ -109,7 +112,8 @@ object ThumbCache {
         while (shortest / (sample * 2) >= sizePx) sample *= 2
         val options = BitmapFactory.Options().apply {
             inSampleSize = sample
-            inPreferredConfig = Bitmap.Config.ARGB_8888
+            // 橫幅與截圖是不透明的照片，用 RGB_565 記憶體減半；圖示可能有透明邊，維持 ARGB。
+            inPreferredConfig = if (sizePx >= LARGE_PX) Bitmap.Config.RGB_565 else Bitmap.Config.ARGB_8888
         }
         return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)?.asImageBitmap()
     }

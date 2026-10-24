@@ -143,6 +143,8 @@ class AppActions(
         if (intent != null) activity.startActivity(intent) else message(activity.getString(R.string.error_cannot_open))
     }
 
+    fun message(@androidx.annotation.StringRes id: Int) = message(activity.getString(id))
+
     fun message(text: String) {
         scope.launch {
             snackbar.currentSnackbarData?.dismiss()
