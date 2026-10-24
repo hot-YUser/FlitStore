@@ -356,6 +356,7 @@ class DownloadManager(
             return target
         } catch (e: DownloadCancelledException) {
             part?.delete()
+            part?.parentFile?.let { if (it.listFiles().isNullOrEmpty()) it.delete() }
             remove(request.pkg)
             return null
         } catch (e: Exception) {

@@ -175,10 +175,10 @@
     <string name="detail_version">版本</string>
     <string name="detail_version_line">版本 %1$s</string>
     <plurals name="rating_count">
-        <item quantity="other">%1$s 則評分</item>
+        <item quantity="other">%1$s則評分</item>
     </plurals>
     <plurals name="reviews_count">
-        <item quantity="other">%1$s 則評論</item>
+        <item quantity="other">%1$s則評論</item>
     </plurals>
     <string name="reviews_title">評論・%1$s</string>
     <string name="reviews_all">全部</string>

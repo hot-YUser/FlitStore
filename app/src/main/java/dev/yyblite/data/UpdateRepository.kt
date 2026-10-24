@@ -98,6 +98,12 @@ class UpdateRepository(
         start(Device.debugInt(ctx, "yyb_threads", FOREGROUND_THREADS).coerceIn(1, 512))
     }
 
+    /** 開啟畫面時呼叫：剛檢查過（例如旋轉螢幕重建）就不重複查。 */
+    fun refreshIfStale(maxAgeMs: Long = 60_000) {
+        // 先判斷 loaded：冷啟動時不必在主執行緒讀快取檔。
+        if (!loaded || System.currentTimeMillis() - cache.checkedAt > maxAgeMs) refresh()
+    }
+
     /** 背景 Worker 用：等目前（或新開的一輪）檢查結束，回傳可提供的更新。 */
     fun checkBlocking(): List<StoreApp> {
         start(BACKGROUND_THREADS).await(15, TimeUnit.MINUTES)

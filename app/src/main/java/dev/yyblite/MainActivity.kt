@@ -83,10 +83,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         model = ViewModelProvider(this)[MainModel::class.java]
-        if (savedInstanceState == null) {
-            handle(intent)
-            graph.updates.refresh()
-        }
+        if (savedInstanceState == null) handle(intent)
+        graph.updates.refreshIfStale()
         setContent { YybTheme { App(this, model) } }
     }
 
