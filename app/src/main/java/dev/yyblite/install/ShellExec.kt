@@ -31,7 +31,7 @@ object ShellExec {
             }
             val out = process.inputStream.bufferedReader().use { it.readText() }.trim()
             if (!process.waitFor(timeoutMs, TimeUnit.MILLISECONDS)) {
-                throw IOException("指令逾時：${argv.firstOrNull()}")
+                throw IOException("command timed out: ${argv.firstOrNull()}")
             }
             errThread.join(2000)
             return ShellResult(process.exitValue(), out, errBuffer.toString().trim())

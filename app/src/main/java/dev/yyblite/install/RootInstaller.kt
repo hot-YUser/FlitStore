@@ -1,5 +1,6 @@
 package dev.yyblite.install
 
+import android.util.Log
 import java.io.File
 import java.io.IOException
 
@@ -40,7 +41,7 @@ object RootInstaller {
             }.getOrDefault(false)
             granted = ok
             checkedAt = now
-            android.util.Log.i("YYBLite", "root granted=$ok")
+            Log.i("YYBLite", "root granted=$ok")
             return ok
         }
     }
@@ -55,7 +56,7 @@ object RootInstaller {
 
     fun install(files: List<File>, fastDexopt: Boolean = false): ShellResult {
         val apks = files.filter { it.exists() && it.name.endsWith(".apk", ignoreCase = true) }
-        if (apks.isEmpty()) throw IOException("找不到 APK")
+        if (apks.isEmpty()) throw IOException("APK not found")
 
         // 與 Aurora 相同：以 session 安裝並標記安裝來源，支援多個 split。
         val total = apks.sumOf { it.length() }
@@ -68,9 +69,9 @@ object RootInstaller {
         val created = create(fastDexopt).let { first ->
             if (!first.ok && fastDexopt) create(false) else first
         }
-        if (!created.ok) throw IOException(created.err.ifBlank { created.out }.ifBlank { "建立安裝工作階段失敗" })
+        if (!created.ok) throw IOException(created.err.ifBlank { created.out }.ifBlank { "install-create failed" })
         val sessionId = Regex("""\[(\d+)]""").find(created.out)?.groupValues?.get(1)?.toIntOrNull()
-            ?: throw IOException("無法解析安裝工作階段：${created.out}")
+            ?: throw IOException("cannot parse install session: ${created.out}")
 
         try {
             for (apk in apks) {
@@ -84,7 +85,7 @@ object RootInstaller {
             if (!committed.ok || !committed.out.contains("Success", ignoreCase = true)) {
                 throw IOException(
                     committed.err.ifBlank { committed.out }
-                        .ifBlank { "pm install-commit 失敗（exit ${committed.code}）" }
+                        .ifBlank { "pm install-commit failed (exit ${committed.code})" }
                 )
             }
             return committed
@@ -96,5 +97,4 @@ object RootInstaller {
 
     private fun su(command: String): ShellResult =
         ShellExec.exec(listOf("su", "-c", command), timeoutMs = 300_000)
-
 }

@@ -9,12 +9,13 @@ import androidx.core.content.FileProvider
 import dev.yyblite.R
 import java.io.File
 
+/** 交給外部安裝器：優先指定 InstallerX，找不到時讓系統選擇。 */
 object InstallHandoff {
     private const val MIME = "application/vnd.android.package-archive"
 
     fun install(ctx: Context, apk: File) {
         if (!apk.exists()) {
-            Toast.makeText(ctx, "檔案不存在：${apk.name}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, R.string.error_file_missing, Toast.LENGTH_SHORT).show()
             return
         }
         val intent = buildIntent(ctx, apk)
@@ -22,14 +23,17 @@ object InstallHandoff {
             if (intent.component != null) {
                 ctx.startActivity(intent)
             } else {
-                ctx.startActivity(Intent.createChooser(intent, "安裝"))
+                ctx.startActivity(
+                    Intent.createChooser(intent, ctx.getString(R.string.action_install))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
             }
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(ctx, R.string.installer_missing, Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, R.string.error_installer_missing, Toast.LENGTH_SHORT).show()
         }
     }
 
-    /** 建好已指定 InstallerX 元件的安裝意圖；找不到時 component 為 null，由呼叫端決定 chooser 或通知。 */
+    /** 建好已指定 InstallerX 元件的安裝意圖；找不到時 component 為 null。 */
     fun buildIntent(ctx: Context, apk: File): Intent {
         val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.files", apk)
         val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -41,10 +45,7 @@ object InstallHandoff {
             .queryIntentActivities(intent, 0)
             .firstOrNull { it.activityInfo.packageName.startsWith("com.rosan.installer") }
         if (installer != null) {
-            intent.component = ComponentName(
-                installer.activityInfo.packageName,
-                installer.activityInfo.name
-            )
+            intent.component = ComponentName(installer.activityInfo.packageName, installer.activityInfo.name)
         }
         return intent
     }

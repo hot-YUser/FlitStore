@@ -1,138 +1,86 @@
 package dev.yyblite.data
 
 import android.content.Context
+import dev.yyblite.core.store.StoreApp
+import dev.yyblite.core.store.StoreAppJson
+import dev.yyblite.core.util.KvFile
 import org.json.JSONObject
+import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 /**
- * 版本查詢結果快取：開 App 時先顯示上次結果，再即時刷新覆蓋。
+ * 商店查詢結果與判定輔助資料的本機快取，全部可由網路重建。
+ * 128 條執行緒會同時寫入，所以底層用 [KvFile]（記憶體為準、單執行緒落盤）。
  */
-class UpdateCache(ctx: Context) {
-    companion object {
-        private const val KEY_APPS = "apps"
-        private const val KEY_FINGERPRINT = "fingerprint"
-        private const val KEY_CHECKED_AT = "checked_at"
-        private const val KEY_NOT_FOUND = "not_found"
-        private const val KEY_REGRESSION = "regression"
-        private const val KEY_BUILDS = "builds"
-        private const val NEGATIVE_TTL_MS = 3L * 24 * 60 * 60 * 1000
-    }
+class UpdateCache(private val ctx: Context) {
+    private val apps by lazy { KvFile(File(ctx.filesDir, "cache/store_apps.json")) }
+    private val meta by lazy { KvFile(File(ctx.filesDir, "cache/store_meta.json")) }
+    private val decoded = ConcurrentHashMap<String, StoreApp>()
+    @Volatile private var loaded = false
 
-    private val prefs = ctx.getSharedPreferences("update_cache", Context.MODE_PRIVATE)
-
-    fun load(): Map<String, StoreApp> {
-        val raw = prefs.getString(KEY_APPS, null) ?: return emptyMap()
-        val root = runCatching { JSONObject(raw) }.getOrNull() ?: return emptyMap()
-        val out = HashMap<String, StoreApp>()
-        val keys = root.keys()
-        while (keys.hasNext()) {
-            val key = keys.next()
-            val app = runCatching { StoreAppJson.decode(root.getJSONObject(key)) }.getOrNull()
-            if (app != null) out[key] = app
+    /** 在背景執行緒先讀檔並解碼；v0.1.0 的 SharedPreferences 快取一併清掉（可重建）。 */
+    fun warmUp() {
+        if (loaded) return
+        synchronized(this) {
+            if (loaded) return
+            for ((pkg, json) in apps.snapshot()) {
+                runCatching { StoreAppJson.decode(JSONObject(json)) }.getOrNull()?.let { decoded[pkg] = it }
+            }
+            ctx.deleteSharedPreferences("update_cache")
+            loaded = true
         }
-        return out
     }
 
-    fun save(apps: Collection<StoreApp>) {
-        val root = JSONObject()
-        apps.forEach { app -> root.put(app.pkg, StoreAppJson.encode(app)) }
-        prefs.edit().putString(KEY_APPS, root.toString()).apply()
+    fun get(pkg: String): StoreApp? {
+        warmUp()
+        return decoded[pkg]
     }
 
     fun put(app: StoreApp) {
-        val root = runCatching {
-            prefs.getString(KEY_APPS, null)?.let { JSONObject(it) } ?: JSONObject()
-        }.getOrDefault(JSONObject())
-        root.put(app.pkg, StoreAppJson.encode(app))
-        prefs.edit().putString(KEY_APPS, root.toString()).apply()
+        warmUp()
+        decoded[app.pkg] = app
+        apps.put(app.pkg, StoreAppJson.encode(app).toString())
     }
 
     fun remove(pkg: String) {
-        val root = runCatching {
-            prefs.getString(KEY_APPS, null)?.let { JSONObject(it) } ?: JSONObject()
-        }.getOrDefault(JSONObject())
-        root.remove(pkg)
-        prefs.edit().putString(KEY_APPS, root.toString()).apply()
+        decoded.remove(pkg)
+        apps.remove(pkg)
     }
 
+    /** 未收錄的套件 3 天內不再重查。 */
     fun isNotFoundFresh(pkg: String): Boolean {
-        val raw = prefs.getString(KEY_NOT_FOUND, null) ?: return false
-        val root = runCatching { JSONObject(raw) }.getOrNull() ?: return false
-        val at = root.optLong(pkg, 0L)
-        return at > 0 && System.currentTimeMillis() - at < NEGATIVE_TTL_MS
+        val at = meta["nf:$pkg"]?.toLongOrNull() ?: return false
+        return System.currentTimeMillis() - at < NEGATIVE_TTL_MS
     }
 
-    fun markNotFound(pkg: String) {
-        val root = runCatching {
-            prefs.getString(KEY_NOT_FOUND, null)?.let { JSONObject(it) } ?: JSONObject()
-        }.getOrDefault(JSONObject())
-        root.put(pkg, System.currentTimeMillis())
-        prefs.edit().putString(KEY_NOT_FOUND, root.toString()).apply()
+    fun markNotFound(pkg: String) = meta.put("nf:$pkg", System.currentTimeMillis().toString())
+
+    fun clearNotFound(pkg: String) = meta.remove("nf:$pkg")
+
+    /** 商店標示較新、APK 的 versionCode 卻比已安裝舊（版本回退），記錄後不再提供。 */
+    fun isRegression(pkg: String, storeVersion: String): Boolean = meta["rg:$pkg"] == storeVersion
+
+    fun markRegression(pkg: String, storeVersion: String) = meta.put("rg:$pkg", storeVersion)
+
+    /** 已探測的商店建置號，綁定 APK 的 MD5：檔案換了就作廢。 */
+    fun buildProbe(pkg: String, md5: String): Long? {
+        val value = meta["bp:$pkg"] ?: return null
+        if (value.substringBefore('|') != md5) return null
+        return value.substringAfter('|').toLongOrNull()?.takeIf { it > 0 }
     }
 
-    fun clearNotFound(pkg: String) {
-        val raw = prefs.getString(KEY_NOT_FOUND, null) ?: return
-        val root = runCatching { JSONObject(raw) }.getOrNull() ?: return
-        if (!root.has(pkg)) return
-        root.remove(pkg)
-        prefs.edit().putString(KEY_NOT_FOUND, root.toString()).apply()
+    fun putBuildProbe(pkg: String, md5: String, code: Long) = meta.put("bp:$pkg", "$md5|$code")
+
+    var checkedAt: Long
+        get() = meta["checked_at"]?.toLongOrNull() ?: 0L
+        set(value) = meta.put("checked_at", value.toString())
+
+    fun flush() {
+        apps.flush()
+        meta.flush()
     }
 
-    /** 商店提供比已安裝更舊的 versionCode（版本回退），記錄後不再提示。 */
-    fun markRegression(pkg: String, storeVersion: String) {
-        val root = runCatching {
-            prefs.getString(KEY_REGRESSION, null)?.let { JSONObject(it) } ?: JSONObject()
-        }.getOrDefault(JSONObject())
-        root.put(pkg, storeVersion)
-        prefs.edit().putString(KEY_REGRESSION, root.toString()).apply()
-    }
-
-    fun isRegression(pkg: String, storeVersion: String): Boolean {
-        val raw = prefs.getString(KEY_REGRESSION, null) ?: return false
-        val root = runCatching { JSONObject(raw) }.getOrNull() ?: return false
-        return root.optString(pkg) == storeVersion
-    }
-
-    fun clearRegression(pkg: String) {
-        val raw = prefs.getString(KEY_REGRESSION, null) ?: return
-        val root = runCatching { JSONObject(raw) }.getOrNull() ?: return
-        if (!root.has(pkg)) return
-        root.remove(pkg)
-        prefs.edit().putString(KEY_REGRESSION, root.toString()).apply()
-    }
-
-    /** 已探測的商店建置號（鍵為 APK URL 的 MD5）。 */
-    fun buildProbe(pkg: String): Pair<String, Long>? {
-        val raw = prefs.getString(KEY_BUILDS, null) ?: return null
-        val root = runCatching { JSONObject(raw) }.getOrNull() ?: return null
-        val obj = root.optJSONObject(pkg) ?: return null
-        val md5 = obj.optString("m")
-        val code = obj.optLong("c", 0)
-        if (md5.isBlank() || code <= 0) return null
-        return md5 to code
-    }
-
-    fun putBuildProbe(pkg: String, md5: String, code: Long) {
-        val root = runCatching {
-            prefs.getString(KEY_BUILDS, null)?.let { JSONObject(it) } ?: JSONObject()
-        }.getOrDefault(JSONObject())
-        root.put(pkg, JSONObject().put("m", md5).put("c", code))
-        prefs.edit().putString(KEY_BUILDS, root.toString()).apply()
-    }
-
-    fun lastFingerprint(): String = prefs.getString(KEY_FINGERPRINT, "") ?: ""
-
-    fun lastCheckedAt(): Long = prefs.getLong(KEY_CHECKED_AT, 0L)
-
-    fun markChecked(fingerprint: String, at: Long = System.currentTimeMillis()) {
-        prefs.edit().putString(KEY_FINGERPRINT, fingerprint).putLong(KEY_CHECKED_AT, at).apply()
-    }
-
-    /** 已安裝版本集合的指紋；任一套件升版即失效。 */
-    fun fingerprint(apps: List<InstalledApp>): String {
-        val joined = apps.sortedBy { it.pkg }
-            .joinToString("|") { "${it.pkg}:${it.versionCode}:${it.versionName}" }
-        return java.security.MessageDigest.getInstance("MD5")
-            .digest(joined.toByteArray())
-            .joinToString("") { "%02x".format(it) }
+    private companion object {
+        const val NEGATIVE_TTL_MS = 3L * 24 * 60 * 60 * 1000
     }
 }

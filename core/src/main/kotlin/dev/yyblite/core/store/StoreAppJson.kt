@@ -31,12 +31,16 @@ object StoreAppJson {
         put("detailed", app.detailed)
     }
 
-    /** 缺包名、版本或下載連結時回 null（快取只存可直接下載的完整資料）。 */
-    fun decode(json: JSONObject): StoreApp? {
+    /**
+     * 缺包名時回 null。[requireDownload] 為 true（更新快取）時，缺版本或下載連結也回 null；
+     * 探索清單的項目本來就可能沒有下載連結（下載前會補查），所以不要求。
+     */
+    fun decode(json: JSONObject, requireDownload: Boolean = true): StoreApp? {
         val pkg = json.optString("pkg")
         val versionName = json.optString("versionName")
         val apkUrl = json.optString("apkUrl")
-        if (pkg.isBlank() || versionName.isBlank() || apkUrl.isBlank()) return null
+        if (pkg.isBlank()) return null
+        if (requireDownload && (versionName.isBlank() || apkUrl.isBlank())) return null
         return StoreApp(
             pkg = pkg,
             name = json.optString("name").ifBlank { pkg },

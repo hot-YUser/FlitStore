@@ -1,132 +1,253 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">YYB Lite</string>
-    <string name="search_hint">搜尋應用</string>
-    <string name="menu_search">搜尋</string>
-    <string name="menu_update_all">全部更新</string>
-    <string name="menu_refresh">重新整理</string>
-    <string name="status_scanning">掃描已安裝應用…</string>
-    <string name="status_checking">檢查中 %1$d/%2$d</string>
-    <string name="status_updates">可更新 %1$d 項</string>
-    <string name="status_updates_with_failures">可更新 %1$d 項 · 檢查失敗 %2$d 項</string>
-    <string name="status_none">已是最新</string>
-    <string name="status_search">搜尋「%1$s」：%2$d 筆</string>
-    <string name="status_search_empty">搜尋「%1$s」：無結果</string>
-    <string name="status_searching">搜尋「%1$s」…</string>
-    <string name="row_local">本地 %1$s → 商店 %2$s</string>
-    <string name="row_store_only">商店版本 %1$s</string>
-    <string name="row_not_installed">未安裝 · 商店版本 %1$s</string>
-    <string name="row_check_failed">檢查失敗</string>
-    <string name="row_check_failed_reason">檢查失敗：%1$s</string>
-    <string name="menu_diagnostics">診斷記錄</string>
-    <string name="diagnostics_title">診斷記錄</string>
-    <string name="diagnostics_empty">目前沒有錯誤紀錄</string>
-    <string name="diagnostics_copy">複製</string>
-    <string name="diagnostics_clear">清除</string>
-    <string name="diagnostics_copied">已複製診斷記錄</string>
-    <string name="row_cached_suffix">%1$s · 快取</string>
-    <string name="row_cert_mismatch">商店 %1$s · 簽章不符</string>
-    <string name="row_build_update">本地 %1$s · 商店建置 %2$d</string>
-    <string name="action_cert_mismatch">簽章不符</string>
-    <string name="detail_cert_mismatch">簽章不符（商店 APK 與已安裝不同，需解除安裝才能更新）</string>
-    <string name="action_update">更新</string>
-    <string name="action_download">下載</string>
-    <string name="action_install">安裝</string>
-    <string name="action_retry">重試</string>
-    <string name="action_latest">已是最新</string>
-    <string name="action_update_selected">更新選取 (%1$d)</string>
-    <string name="global_downloading">下載中 %3$d 個 · 全域 %1$s · 剩 %2$s</string>
-    <string name="ignore_once">忽略本次更新</string>
-    <string name="ignore_forever">忽略此應用更新</string>
-    <string name="ignore_clear">取消忽略</string>
-    <string name="menu_ignored">已忽略的更新</string>
-    <string name="menu_auto_update">自動更新</string>
-    <string name="auto_update_title">背景自動更新</string>
-    <string name="auto_update_message">偵測到更新後自動下載並安裝，不再詢問。
+    <string name="app_name" translatable="false">YYB Lite</string>
 
-• 需要 Root 才能背景無感下載與安裝；沒有 Root 時只會發出更新通知。
-• 同一版本 12 小時內只嘗試一次，避免失敗後重複下載。
-• 背景檢查每 3 小時執行一次。</string>
-    <string name="auto_update_enable">開啟自動下載與安裝</string>
-    <string name="auto_update_running">正在背景自動更新應用程式</string>
-    <string name="auto_update_need_privilege">目前沒有 Root 或 Shizuku，將只會自動下載，安裝仍需手動確認</string>
-    <string name="ignore_empty">沒有已忽略的項目</string>
-    <string name="action_downloading">下載中 %1$d%%</string>
-    <string name="action_queued">排隊中</string>
-    <string name="installer_missing">找不到可用的安裝器</string>
-    <string name="notification_channel">下載</string>
-    <string name="notification_title">正在下載</string>
-    <string name="notification_install_channel">安裝</string>
-    <string name="notification_ready">下載完成：%1$s</string>
-    <string name="notification_install_failed">安裝失敗：%1$s</string>
-    <string name="installer_title">安裝方式</string>
-    <string name="installer_auto">自動（Root → Shizuku → 外部）</string>
+    <!-- 分頁與探索 -->
+    <string name="tab_explore">Explore</string>
+    <string name="tab_updates">Updates</string>
+    <string name="tab_mine">Me</string>
+    <string name="explore_for_you">For you</string>
+    <string name="explore_apps">Apps</string>
+    <string name="explore_games">Games</string>
+    <string name="search_hint">Search apps and games</string>
+    <string name="search_history">Recent searches</string>
+    <string name="search_empty">No results for “%1$s”</string>
+    <string name="section_editor_choice">Featured games</string>
+    <string name="section_top_games">Top games</string>
+    <string name="section_popular_apps">Popular apps</string>
+    <string name="section_new_games">New games</string>
+    <string name="section_trending_apps">Trending apps</string>
+    <string name="category_all">All</string>
+    <string name="list_empty">Nothing here yet</string>
+
+    <!-- 動作 -->
+    <string name="action_back">Back</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_cert_mismatch">Signature mismatch</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_close">Close</string>
+    <string name="action_collapse">Show less</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_expand">Show more</string>
+    <string name="action_install">Install</string>
+    <string name="action_more">More options</string>
+    <string name="action_open">Open</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_see_all">See all</string>
+    <string name="action_update">Update</string>
+    <string name="action_update_all">Update all</string>
+
+    <!-- 狀態 -->
+    <string name="status_scanning">Scanning installed apps…</string>
+    <string name="status_checking">Checking %1$d/%2$d</string>
+    <string name="status_checked_at">Checked %1$s</string>
+    <string name="status_detecting">Detecting…</string>
+    <string name="status_queued">Waiting…</string>
+    <string name="status_downloading_percent">Downloading %1$d%%</string>
+    <string name="status_verifying">Verifying…</string>
+    <string name="status_installing">Installing…</string>
+    <string name="status_ready">Downloaded · tap Install</string>
+    <string name="status_cancelled">Cancelled</string>
+
+    <!-- 更新 -->
+    <string name="updates_none_title">Everything is up to date</string>
+    <plurals name="updates_none_body">
+        <item quantity="one">Checked %1$d app</item>
+        <item quantity="other">Checked %1$d apps</item>
+    </plurals>
+    <plurals name="updates_available">
+        <item quantity="one">%1$d update</item>
+        <item quantity="other">%1$d updates</item>
+    </plurals>
+    <string name="updates_total_size">%1$s in total</string>
+    <string name="updates_blocked">Needs attention</string>
+    <string name="updates_failed">Couldn’t check (%1$d)</string>
+    <plurals name="selected_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
+    <string name="version_arrow">%1$s → %2$s</string>
+    <string name="version_new_build">%1$s · new build %2$d</string>
+    <string name="version_cert_mismatch">%1$s · signature mismatch</string>
+    <string name="ignore_once">Skip this version</string>
+    <string name="ignore_forever">Ignore all updates</string>
+    <string name="ignore_clear">Stop ignoring</string>
+
+    <!-- 我的 -->
+    <string name="mine_installed">Installed apps</string>
+    <string name="mine_downloads">Downloads</string>
+    <string name="mine_downloads_stored">%1$s stored</string>
+    <string name="mine_ignored">Ignored updates</string>
+    <string name="mine_settings">Settings</string>
+    <string name="mine_settings_hint">Installer, automatic updates, language</string>
+    <string name="mine_diagnostics">Diagnostics</string>
+    <string name="mine_about">About</string>
+    <plurals name="apps_count">
+        <item quantity="one">%1$d app</item>
+        <item quantity="other">%1$d apps</item>
+    </plurals>
+    <plurals name="downloads_active">
+        <item quantity="one">%1$d in progress</item>
+        <item quantity="other">%1$d in progress</item>
+    </plurals>
+    <plurals name="log_count">
+        <item quantity="one">%1$d entry</item>
+        <item quantity="other">%1$d entries</item>
+    </plurals>
+    <string name="installed_filter">Filter by name or package</string>
+    <string name="state_latest">Up to date</string>
+    <string name="state_update">Update to %1$s</string>
+    <string name="state_ignored">Update ignored</string>
+    <string name="state_cert_mismatch">Signature mismatch</string>
+    <string name="state_regression">Store version is older</string>
+    <string name="state_not_in_store">Not in store</string>
+    <string name="state_check_failed">Check failed</string>
+    <string name="state_pending">Not checked yet</string>
+    <string name="downloads_empty">No downloads</string>
+    <string name="downloads_stored">Downloaded APKs</string>
+    <string name="downloads_clear">Delete all downloads</string>
+    <string name="downloads_clear_message">Downloaded APK files will be deleted. Active downloads are not affected.</string>
+    <string name="ignored_empty">No ignored updates</string>
+    <string name="ignored_forever">All updates ignored</string>
+    <string name="ignored_version">Skipping %1$s</string>
+    <string name="diagnostics_empty">No errors recorded</string>
+    <string name="diagnostics_copied">Diagnostics copied</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_tagline">A lightweight, fast client for the Tencent App Store.</string>
+    <string name="about_licenses">Open-source licenses</string>
+
+    <!-- 安裝方式 -->
+    <string name="installer_current">Installer: %1$s</string>
+    <string name="installer_silent">Installs silently in the background</string>
+    <string name="installer_confirm_each">Confirm each install in the installer app</string>
+    <string name="installer_auto">Automatic</string>
+    <string name="installer_auto_hint">Root → Shizuku → external installer</string>
     <string name="installer_root">Root</string>
+    <string name="installer_root_granted">Granted</string>
+    <string name="installer_root_detected">su found · permission is requested on first install</string>
+    <string name="installer_root_missing">Not available</string>
     <string name="installer_shizuku">Shizuku</string>
-    <string name="installer_external">外部安裝器</string>
-    <string name="installer_root_status_yes">Root：偵測到 su，首次安裝時會請求授權</string>
-    <string name="installer_root_granted">Root：已授權</string>
-    <string name="installer_root_status_no">Root：未授權或未安裝（首次安裝時會嘗試 su）</string>
-    <string name="installer_shizuku_absent">Shizuku：未安裝或未啟動</string>
-    <string name="installer_shizuku_granted">Shizuku：已授權</string>
-    <string name="installer_shizuku_denied">Shizuku：已連線，尚未授權</string>
-    <string name="installer_request_shizuku">請求 Shizuku 權限</string>
-    <string name="installer_apply">套用</string>
-    <string name="installer_fast_dexopt">極速安裝（跳過 dexopt，首次啟動較慢）</string>
-    <string name="installer_shizuku_not_running">Shizuku 未連線</string>
-    <string name="installer_shizuku_ok">Shizuku 已授權</string>
-    <string name="installer_shizuku_rejected">Shizuku 授權被拒</string>
-    <string name="installer_installed_root">已透過 Root 安裝</string>
-    <string name="installer_installed_shizuku">已透過 Shizuku 安裝</string>
-    <string name="installer_failed">安裝失敗：%1$s</string>
-    <string name="downgrade_title">降級安裝</string>
-    <string name="downgrade_message">此 APK 版本低於已安裝版本：\n已安裝 %1$s（%2$d）\n將安裝 %3$s（%4$d）\n\n降級可能造成資料遺失或功能異常，確定要繼續嗎？</string>
-    <string name="downgrade_confirm">仍要降級安裝</string>
-    <string name="downgrade_blocked">目標版本低於已安裝版本，已停止自動降級</string>
-    <string name="store_regression">商店版本較舊（APK %1$d &lt; 已安裝 %2$d），已略過此更新</string>
-    <string name="detail_store_regression">商店版本較舊，已略過</string>
-    <string name="updates_channel">更新通知</string>
-    <string name="updates_found">有 %1$d 個應用可更新</string>
-    <string name="notification_ready_hint">點一下安裝 %1$s</string>
-    <string name="overlay_title">允許背景自動安裝</string>
-    <string name="overlay_message">離開 App 後，Android 會阻擋自動開啟安裝器。允許「顯示在其他應用上層」後，下載完成即可直接安裝，不需再按一次。</string>
-    <string name="overlay_open">前往設定</string>
-    <string name="overlay_later">稍後</string>
-    <string name="detail_title">應用詳情</string>
-    <string name="detail_loading">讀取詳情…</string>
-    <string name="detail_failed">讀取失敗：%1$s</string>
-    <string name="detail_not_in_store">商店未收錄此應用</string>
-    <string name="detail_versions">本地 %1$s · 商店 %2$s</string>
-    <string name="detail_versions_new">尚未安裝 · 商店 %1$s</string>
-    <string name="detail_size">大小</string>
-    <string name="detail_abi64">架構 arm64-v8a（64 位）</string>
-    <string name="detail_abi32">架構 armeabi-v7a（32 位）</string>
-    <string name="detail_downloaded">已下載完成，可安裝</string>
-    <string name="detail_official">官方認證</string>
-    <string name="detail_unofficial">未認證</string>
-    <string name="detail_reviews_count">用戶評價（%1$d）</string>
-    <string name="detail_show_all_reviews">顯示全部評論</string>
-    <string name="detail_view_all_reviews">查看全部評論（%1$d）</string>
-    <string name="reviews_count">共 %1$d 則</string>
-    <string name="reviews_loaded">已載入 %1$d 則</string>
-    <string name="reviews_empty">暫無評論</string>
-    <string name="detail_rating_mix">星等分佈</string>
-    <string name="detail_reviews">用戶評價</string>
-    <string name="detail_same_developer">同開發者</string>
-    <string name="detail_history">版本歷史（本機記錄）</string>
-    <string name="detail_operator">運營商</string>
-    <string name="detail_developer">開發者</string>
-    <string name="detail_package">套件名稱</string>
-    <string name="detail_package_copied">已複製套件名稱</string>
-    <string name="detail_version">版本</string>
-    <string name="detail_updated">更新日期</string>
-    <string name="detail_category">分類</string>
-    <string name="detail_icp">備案號</string>
-    <string name="detail_rating">評分</string>
-    <string name="detail_downloads">下載量</string>
-    <string name="detail_history_empty">尚無本機記錄，之後每次檢查到新版本會自動累積。</string>
-    <string name="detail_ignored">已忽略此更新</string>
-    <string name="developer_title">%1$s 的應用</string>
-    <string name="developer_empty">沒有找到其他應用</string>
-    <string name="developer_loading">載入中…</string>
+    <string name="installer_shizuku_granted">Granted</string>
+    <string name="installer_shizuku_denied">Running · permission not granted</string>
+    <string name="installer_shizuku_missing">Not installed or not running</string>
+    <string name="installer_external">External installer</string>
+    <string name="installer_external_hint">InstallerX or the system installer</string>
+    <string name="installer_request_shizuku">Grant Shizuku permission</string>
+    <string name="installed_via_root">Installed via root</string>
+    <string name="installed_via_shizuku">Installed via Shizuku</string>
+
+    <!-- 設定 -->
+    <string name="settings_install">Installation</string>
+    <string name="settings_fast_install">Fast install</string>
+    <string name="settings_fast_install_hint">Skips dexopt; the first launch after an update is slower</string>
+    <string name="settings_updates">Updates</string>
+    <string name="settings_auto_update">Automatic updates</string>
+    <string name="settings_auto_update_hint">Checks every 3 hours and installs in the background. Silent install needs root or Shizuku; each version is tried at most once every 12 hours.</string>
+    <string name="settings_auto_update_no_privilege">Without root or Shizuku, updates download automatically but still need your confirmation to install</string>
+    <string name="settings_overlay">Open installer from background</string>
+    <string name="settings_overlay_on">Allowed</string>
+    <string name="settings_overlay_off">Not allowed · only needed for the external installer</string>
+    <string name="settings_general">General</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_hint">Follow the system or choose a language for this app</string>
+    <string name="auto_update_title">Automatic updates</string>
+
+    <!-- 詳情 -->
+    <string name="detail_about">About this app</string>
+    <string name="detail_abi">Architecture</string>
+    <string name="detail_abi64">arm64-v8a (64-bit)</string>
+    <string name="detail_abi32">armeabi-v7a (32-bit)</string>
+    <string name="detail_category">Category</string>
+    <string name="detail_cert_mismatch">The store APK is signed with a different key. Uninstall the current app to install this version.</string>
+    <string name="detail_copy_package">Copy package name</string>
+    <string name="detail_developer">Developer</string>
+    <string name="detail_downloads">Downloads</string>
+    <string name="detail_icp">ICP license</string>
+    <string name="detail_ignored">Version %1$s is ignored</string>
+    <string name="detail_info">App info</string>
+    <string name="detail_not_in_store">This app isn’t in the store</string>
+    <string name="detail_official">Verified</string>
+    <string name="detail_open_web">Open in browser</string>
+    <string name="detail_operator">Publisher</string>
+    <string name="detail_package">Package name</string>
+    <string name="detail_package_copied">Package name copied</string>
+    <string name="detail_rating">Rating</string>
+    <string name="detail_ratings">Ratings and reviews</string>
+    <string name="detail_regression">The store’s version is older than the installed one, so this update is skipped</string>
+    <string name="detail_same_developer">More from this developer</string>
+    <string name="detail_size">Size</string>
+    <string name="detail_up_to_date">Up to date · %1$s</string>
+    <string name="detail_updated">Updated</string>
+    <string name="detail_version">Version</string>
+    <string name="detail_version_line">Version %1$s</string>
+    <plurals name="rating_count">
+        <item quantity="one">%1$s rating</item>
+        <item quantity="other">%1$s ratings</item>
+    </plurals>
+    <plurals name="reviews_count">
+        <item quantity="one">%1$s review</item>
+        <item quantity="other">%1$s reviews</item>
+    </plurals>
+    <string name="reviews_title">Reviews · %1$s</string>
+    <string name="reviews_all">All</string>
+    <string name="reviews_latest">Latest</string>
+    <string name="reviews_positive">Positive</string>
+    <string name="reviews_neutral">Mixed</string>
+    <string name="reviews_negative">Critical</string>
+    <string name="reviews_empty">No reviews yet</string>
+    <string name="reviews_anonymous">Anonymous</string>
+
+    <!-- 對話框 -->
+    <string name="downgrade_title">Install an older version?</string>
+    <string name="downgrade_message">This APK is older than the installed app:\nInstalled %1$s (%2$d)\nThis APK %3$s (%4$d)\n\nDowngrading can lose data or break the app.</string>
+    <string name="downgrade_confirm">Install anyway</string>
+    <string name="overlay_title">Install right after download</string>
+    <string name="overlay_message">Android blocks opening the installer from the background. Allow “Display over other apps” so downloads that finish in the background open the installer right away.</string>
+    <string name="overlay_open">Open settings</string>
+    <string name="overlay_later">Later</string>
+
+    <!-- 通知 -->
+    <string name="channel_downloads">Downloads</string>
+    <string name="channel_install">Installs</string>
+    <string name="channel_updates">Update alerts</string>
+    <string name="notification_preparing">Preparing download</string>
+    <plurals name="notification_downloading">
+        <item quantity="one">Downloading %1$d app</item>
+        <item quantity="other">Downloading %1$d apps</item>
+    </plurals>
+    <plurals name="notification_updates">
+        <item quantity="one">%1$d app can be updated</item>
+        <item quantity="other">%1$d apps can be updated</item>
+    </plurals>
+    <string name="notification_updates_more">%1$s and more (%2$d in total)</string>
+    <string name="notification_ready">Ready to install: %1$s</string>
+    <string name="notification_ready_hint">Tap to install %1$s</string>
+    <string name="notification_failed">Failed: %1$s</string>
+    <string name="notification_auto_update_running">Updating apps in the background</string>
+
+    <!-- 錯誤 -->
+    <string name="error_cannot_open">This app can’t be opened</string>
+    <string name="error_checksum">The download was corrupted (checksum mismatch). Try again.</string>
+    <string name="error_file_missing">The downloaded file is missing</string>
+    <string name="error_generic">Something went wrong: %1$s</string>
+    <string name="error_http">The server responded with HTTP %1$d</string>
+    <string name="error_install">Install failed: %1$s</string>
+    <string name="error_installer_missing">No installer app found</string>
+    <string name="error_network">Network error. Check your connection.</string>
+    <string name="error_network_detail">Network error: %1$s</string>
+    <string name="error_no_download">The store has no download for this app</string>
+    <string name="error_offline">You’re offline</string>
+    <string name="error_signature">The file’s signature doesn’t match the store</string>
+    <string name="error_signature_unreadable">Couldn’t read the APK signature</string>
+    <string name="error_storage">Storage isn’t available</string>
+    <string name="error_store_format">The store returned unexpected data</string>
+    <string name="error_store_regression">The store version is older (APK %1$d &lt; installed %2$d), skipped</string>
+    <string name="error_throttled">The store’s download server is busy. Try again later.</string>
+    <string name="error_timeout">The connection timed out</string>
+    <string name="error_unknown">Unknown error</string>
+
+    <string name="value_speed">%1$s/s</string>
+    <string name="value_unknown">Unknown</string>
 </resources>

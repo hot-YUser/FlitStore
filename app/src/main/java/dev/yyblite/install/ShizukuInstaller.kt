@@ -31,12 +31,12 @@ object ShizukuInstaller {
 
     fun install(files: List<File>, fastDexopt: Boolean = false): String {
         val apks = files.filter { it.exists() && it.name.endsWith(".apk", ignoreCase = true) }
-        if (apks.isEmpty()) throw IOException("找不到 APK")
+        if (apks.isEmpty()) throw IOException("APK not found")
         val service = IShizukuService.Stub.asInterface(Shizuku.getBinder())
-            ?: throw IOException("Shizuku 未連線")
+            ?: throw IOException("Shizuku not connected")
         if (service.uid != 2000 && service.uid != 0) {
             // shell 或 root 皆可；其他 uid 代表授權異常。
-            throw IOException("Shizuku 權限異常（uid=${service.uid}）")
+            throw IOException("unexpected Shizuku uid ${service.uid}")
         }
 
         val total = apks.sumOf { it.length() }
@@ -53,7 +53,7 @@ object ShizukuInstaller {
             if (fastDexopt) create(false) else throw it
         }
         val sessionId = Regex("""\[(\d+)]""").find(created)?.groupValues?.get(1)?.toIntOrNull()
-            ?: throw IOException("建立安裝工作階段失敗：$created")
+            ?: throw IOException("install-create failed: $created")
 
         try {
             for (apk in apks) {
@@ -101,7 +101,7 @@ object ShizukuInstaller {
             errThread.join(2000)
             val err = errBuffer.toString().trim()
             if (exit != 0) {
-                throw IOException(err.ifBlank { out }.ifBlank { "pm 結束碼 $exit" })
+                throw IOException(err.ifBlank { out }.ifBlank { "pm exit code $exit" })
             }
             return out.ifBlank { err }
         } finally {

@@ -1,41 +1,30 @@
 package dev.yyblite.ui
 
-import java.text.SimpleDateFormat
+import android.content.Context
+import android.text.format.DateUtils
+import android.text.format.Formatter
+import dev.yyblite.R
+import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
 
+/** 依目前語系格式化大小、速度、日期。 */
 object Format {
-    fun speed(bytesPerSecond: Long): String {
-        if (bytesPerSecond <= 0) return "0 KB/s"
-        val kb = bytesPerSecond / 1024.0
-        return if (kb < 1024) {
-            String.format(Locale.US, "%.0f KB/s", kb)
-        } else {
-            String.format(Locale.US, "%.1f MB/s", kb / 1024.0)
-        }
-    }
+    fun size(ctx: Context, bytes: Long): String =
+        if (bytes <= 0) ctx.getString(R.string.value_unknown) else Formatter.formatShortFileSize(ctx, bytes)
 
-    fun eta(seconds: Long): String {
-        if (seconds <= 0) return "--"
-        val m = seconds / 60
-        val s = seconds % 60
-        return if (m > 0) "${m} 分 ${String.format(Locale.US, "%02d", s)} 秒" else "$s 秒"
-    }
+    fun speed(ctx: Context, bytesPerSecond: Long): String =
+        ctx.getString(R.string.value_speed, Formatter.formatShortFileSize(ctx, bytesPerSecond.coerceAtLeast(0)))
 
-    fun bytes(bytes: Long): String {
-        if (bytes <= 0) return "未知"
-        val mb = bytes / (1024.0 * 1024.0)
-        return if (mb < 1) String.format(Locale.US, "%.0f KB", bytes / 1024.0)
-        else String.format(Locale.US, "%.1f MB", mb)
-    }
+    /** 剩餘時間以 m:ss 表示，各語系通用。 */
+    fun eta(seconds: Long): String =
+        if (seconds <= 0) "--:--" else String.format(Locale.ROOT, "%d:%02d", seconds / 60, seconds % 60)
 
-    fun date(epochSeconds: Long): String {
-        if (epochSeconds <= 0) return ""
-        return SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(epochSeconds * 1000))
-    }
+    fun date(epochSeconds: Long): String =
+        if (epochSeconds <= 0) "" else DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(epochSeconds * 1000))
 
-    fun time(epochMillis: Long): String {
-        if (epochMillis <= 0) return ""
-        return SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(epochMillis))
-    }
+    fun relative(epochMillis: Long): String =
+        DateUtils.getRelativeTimeSpanString(epochMillis, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+
+    fun rating(value: Double): String = String.format(Locale.getDefault(), "%.1f", value)
 }
