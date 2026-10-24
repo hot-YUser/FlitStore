@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "yyb-lite"
-include(":app")
+include(":app", ":core")
