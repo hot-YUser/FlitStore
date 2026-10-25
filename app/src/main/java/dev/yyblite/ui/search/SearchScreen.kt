@@ -12,17 +12,17 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -60,11 +60,15 @@ fun SearchScreen() {
     val navigator = LocalNavigator.current
     val keyboard = LocalSoftwareKeyboardController.current
     val text = rememberTextFieldState()
-    val bar = rememberSearchBarState()
     var submitted by rememberSaveable { mutableStateOf<String?>(null) }
     var history by remember { mutableStateOf(graph.settings.searchHistory) }
     val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { if (submitted == null) runCatching { focus.requestFocus() } }
+    LaunchedEffect(Unit) {
+        if (submitted == null) {
+            runCatching { focus.requestFocus() }
+            keyboard?.show()
+        }
+    }
     LaunchedEffect(text) { snapshotFlow { text.text.isBlank() }.collect { blank -> if (blank) submitted = null } }
 
     fun submit(query: String) {
@@ -78,37 +82,41 @@ fun SearchScreen() {
     }
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        SearchBar(
-            state = bar,
-            inputField = {
-                SearchBarDefaults.InputField(
-                    textFieldState = text,
-                    searchBarState = bar,
-                    onSearch = ::submit,
-                    placeholder = { Text(stringResource(R.string.search_hint)) },
-                    leadingIcon = {
-                        IconButton(onClick = { navigator.pop() }) {
-                            Glyph(R.drawable.ic_arrow_back, contentDescription = stringResource(R.string.action_back))
-                        }
-                    },
-                    trailingIcon = {
-                        if (text.text.isNotEmpty()) {
-                            IconButton(onClick = {
-                                text.clearText()
-                                runCatching { focus.requestFocus() }
-                            }) {
-                                Glyph(R.drawable.ic_close, contentDescription = stringResource(R.string.action_clear))
-                            }
-                        }
-                    },
-                    modifier = Modifier.focusRequester(focus)
-                )
-            },
+        // 這一頁本身就是展開的搜尋畫面：不用 SearchBar(state)，否則輸入框一取得焦點就會等著
+        // 不存在的展開版搜尋列接手，焦點隨即被清掉，鍵盤也跳不出來。
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .sharedIcon("search-bar")
-        )
+        ) {
+            SearchBarDefaults.InputField(
+                state = text,
+                onSearch = ::submit,
+                expanded = true,
+                onExpandedChange = {},
+                placeholder = { Text(stringResource(R.string.search_hint)) },
+                leadingIcon = {
+                    IconButton(onClick = { navigator.pop() }) {
+                        Glyph(R.drawable.ic_arrow_back, contentDescription = stringResource(R.string.action_back))
+                    }
+                },
+                trailingIcon = {
+                    if (text.text.isNotEmpty()) {
+                        IconButton(onClick = {
+                            text.clearText()
+                            runCatching { focus.requestFocus() }
+                            keyboard?.show()
+                        }) {
+                            Glyph(R.drawable.ic_close, contentDescription = stringResource(R.string.action_clear))
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().focusRequester(focus)
+            )
+        }
         val current = submitted
         if (current == null) {
             History(history, onPick = ::submit, onClear = {
