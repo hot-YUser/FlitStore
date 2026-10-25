@@ -271,7 +271,21 @@ class SegmentDownloader(private val segments: Int = 0) {
             workers.add(worker)
             worker.start()
         }
-        workers.forEach { it.join() }
+        // 卡在建立連線的執行緒打不斷（disconnect 對 connect 無效），取消後最多再等一秒就回報；
+        // 它們醒來時 token.track 會直接丟出取消，不會再寫檔。
+        var graceUntil = 0L
+        for (worker in workers) {
+            while (worker.isAlive) {
+                if (!token.isCancelled) {
+                    worker.join(200)
+                    continue
+                }
+                if (graceUntil == 0L) graceUntil = System.currentTimeMillis() + 1000
+                val left = graceUntil - System.currentTimeMillis()
+                if (left <= 0) break
+                worker.join(left)
+            }
+        }
 
         if (token.isCancelled) {
             dest.delete()
