@@ -128,7 +128,9 @@ private fun InstallerCard(status: InstallerStatus?, onClick: () -> Unit) {
         null -> ""
     }
     val detail = when (status?.effective) {
-        InstallerKind.ROOT, InstallerKind.SHIZUKU -> stringResource(R.string.installer_silent)
+        // 只看到 su 檔案、還沒真的拿到 root 前，不能保證能在背景安裝。
+        InstallerKind.ROOT -> stringResource(if (status.rootGranted == true) R.string.installer_silent else R.string.installer_root_detected)
+        InstallerKind.SHIZUKU -> stringResource(R.string.installer_silent)
         InstallerKind.EXTERNAL -> stringResource(R.string.installer_confirm_each)
         null -> stringResource(R.string.status_detecting)
     }
