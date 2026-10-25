@@ -14,6 +14,7 @@ import org.junit.Assume
 import org.junit.Test
 import java.io.File
 import java.net.InetSocketAddress
+import java.net.URL
 import java.security.MessageDigest
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -96,7 +97,7 @@ class SegmentDownloaderTest {
                 assertArrayEquals(body, dest.readBytes())
                 assertTrue(report.throttled.get() > 0)
                 assertTrue(report.retries.get() > 0)
-                assertTrue(report.lowestParallel < 16)
+                assertTrue(report.cutParallel in 1 until 16)
                 assertFalse(report.sequential)
             } finally {
                 dest.delete()
@@ -117,6 +118,53 @@ class SegmentDownloaderTest {
                     assertArrayEquals(body, dest.readBytes())
                     assertTrue(report.switches.get() > 0)
                     assertFalse(report.sequential)
+                } finally {
+                    dest.delete()
+                }
+            }
+        }
+    }
+
+    /**
+     * CDN 對同一個 IP 只放行 10 條同時連線（實測 EdgeOne 就是這樣）：
+     * 併發要漸進加速，頂多在加倍的那一步被擋幾條，之後穩定在上限以下。
+     */
+    @Test
+    fun rampUpStaysNearConnectionLimit() {
+        val body = Random(11).nextBytes(2 * 1024 * 1024)
+        FakeCdn(body, concurrencyLimit = 10, delayMs = 300) { Mode.OK }.use { cdn ->
+            val report = DownloadReport()
+            val dest = File.createTempFile("ramp", ".apk")
+            try {
+                SegmentDownloader(32).download(listOf(cdn.url), md5(body), dest, CancelToken(), report) { _, _ -> }
+                assertArrayEquals(body, dest.readBytes())
+                // 一口氣開滿 32 條會被擋 22 條；漸進加速最多衝到 16，被擋後穩定在 10 以下。
+                // 假 CDN 的計數在連線收尾時會略為多算，被擋次數只要求遠低於一口氣開滿的情況。
+                assertTrue("一次開太多：${cdn.peakActive}", cdn.peakActive <= 16)
+                assertTrue("被擋太多次：$report", report.throttled.get() <= 16)
+                assertTrue("併發沒砍到上限以下：$report", report.cutParallel in 1..10)
+                assertFalse("不該退回單連線：$report", report.sequential)
+            } finally {
+                dest.delete()
+            }
+        }
+    }
+
+    /** 一台鏡像對分段一律斷線：失敗幾次、一個位元組都拿不到就放棄它，不要來回換。 */
+    @Test
+    fun deadMirrorIsAbandoned() {
+        val body = Random(5).nextBytes(1024 * 1024)
+        FakeCdn(body) { n -> if (n == 1) Mode.OK else Mode.DROP }.use { dead ->
+            FakeCdn(body) { Mode.OK }.use { good ->
+                val report = DownloadReport()
+                val dest = File.createTempFile("dead", ".apk")
+                try {
+                    SegmentDownloader(8).download(listOf(dead.url, good.url), md5(body), dest, CancelToken(), report) { _, _ -> }
+                    assertArrayEquals(body, dest.readBytes())
+                    val mirror = report.mirror(URL(dead.url).authority)
+                    assertTrue(mirror.unusable)
+                    // 每段頂多在死鏡像上失敗一次（HttpURLConnection 自己還會悄悄重送一次 GET）。
+                    assertTrue("死掉的鏡像被打太多次：$report", mirror.failures.get() <= 8 && dead.requests <= 2 * 8 + 1)
                 } finally {
                     dest.delete()
                 }
@@ -154,12 +202,25 @@ class SegmentDownloaderTest {
         }
     }
 
-    private enum class Mode { OK, THROTTLE, CHALLENGE, TRUNCATE, IGNORE_RANGE }
+    private enum class Mode { OK, THROTTLE, CHALLENGE, TRUNCATE, IGNORE_RANGE, DROP }
 
-    /** 本機假 CDN：[mode] 依請求序號（從 1 起算）決定這次怎麼回應。 */
-    private class FakeCdn(private val body: ByteArray, private val mode: (Int) -> Mode) : AutoCloseable {
+    /**
+     * 本機假 CDN：[mode] 依請求序號（從 1 起算）決定這次怎麼回應。
+     * 同時連線超過 [concurrencyLimit] 立刻回 429；[delayMs] 是資料本體分段送完的總時間，
+     * 像真的 CDN 一樣標頭很快回來、資料慢慢傳，連線才會真的疊起來。
+     */
+    private class FakeCdn(
+        private val body: ByteArray,
+        private val concurrencyLimit: Int = Int.MAX_VALUE,
+        private val delayMs: Long = 0,
+        private val mode: (Int) -> Mode
+    ) : AutoCloseable {
         private val count = AtomicInteger()
+        private val active = AtomicInteger()
+        private val peak = AtomicInteger()
         private val pool = Executors.newCachedThreadPool()
+        val requests: Int get() = count.get()
+        val peakActive: Int get() = peak.get()
         private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
             executor = pool
             createContext("/") { ex -> respond(ex) }
@@ -168,10 +229,13 @@ class SegmentDownloaderTest {
         val url = "http://127.0.0.1:${server.address.port}/app.apk"
 
         private fun respond(ex: HttpExchange) {
+            val now = active.incrementAndGet()
+            peak.accumulateAndGet(now, ::maxOf)
             try {
                 val range = ex.requestHeaders.getFirst("Range")?.removePrefix("bytes=")?.split('-')
-                val current = mode(count.incrementAndGet())
+                val current = if (now > concurrencyLimit) Mode.THROTTLE.also { count.incrementAndGet() } else mode(count.incrementAndGet())
                 when (current) {
+                    Mode.DROP -> return
                     Mode.THROTTLE -> ex.sendResponseHeaders(429, -1)
                     Mode.CHALLENGE -> send(ex, 200, "text/html", "<html>verify</html>".toByteArray())
                     Mode.IGNORE_RANGE -> send(ex, 200, APK, body)
@@ -184,13 +248,27 @@ class SegmentDownloaderTest {
                         val length = end - start + 1
                         ex.sendResponseHeaders(206, length.toLong())
                         val sent = if (current == Mode.TRUNCATE) length / 2 else length
-                        ex.responseBody.write(body, start, sent)
+                        trickle(ex, start, sent)
                     }
                 }
             } catch (_: Exception) {
                 // 故意少送位元組時伺服器端會抱怨，客戶端看到的就是斷線。
             } finally {
+                active.decrementAndGet()
                 runCatching { ex.close() }
+            }
+        }
+
+        private fun trickle(ex: HttpExchange, start: Int, length: Int) {
+            if (delayMs <= 0) return ex.responseBody.write(body, start, length)
+            val chunk = (length + 3) / 4
+            var offset = 0
+            while (offset < length) {
+                Thread.sleep(delayMs / 4)
+                val n = minOf(chunk, length - offset)
+                ex.responseBody.write(body, start + offset, n)
+                ex.responseBody.flush()
+                offset += n
             }
         }
 
