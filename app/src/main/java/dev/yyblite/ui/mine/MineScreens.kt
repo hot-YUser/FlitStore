@@ -57,7 +57,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -547,18 +546,22 @@ fun AboutScreen() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // 自適應圖示不能直接給 painterResource，改用同一份前景向量自行組合。
+                    // 自適應圖示不能直接給 painterResource，改用同一份底圖與前景自行組合（與桌面相同的 72/108 可見比例）。
                     Box(
                         Modifier
                             .size(88.dp)
-                            .clip(RoundedCornerShape(26.dp))
-                            .background(colorResource(R.color.brand)),
+                            .clip(RoundedCornerShape(26.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
+                            painterResource(R.drawable.ic_launcher_background),
+                            contentDescription = null,
+                            modifier = Modifier.requiredSize(132.dp)
+                        )
+                        Image(
                             painterResource(R.drawable.ic_launcher_foreground),
                             contentDescription = null,
-                            modifier = Modifier.requiredSize(144.dp)
+                            modifier = Modifier.requiredSize(132.dp)
                         )
                     }
                     Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)

@@ -74,7 +74,7 @@ object Notifications {
         post(
             ctx, ID_UPDATES,
             NotificationCompat.Builder(ctx, CHANNEL_UPDATES)
-                .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(ctx.resources.getQuantityString(R.plurals.notification_updates, apps.size, apps.size))
                 .setContentText(text)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text))
@@ -95,7 +95,7 @@ object Notifications {
         post(
             ctx, readyId(pkg),
             NotificationCompat.Builder(ctx, CHANNEL_INSTALL)
-                .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(ctx.getString(R.string.notification_ready, name))
                 .setContentText(ctx.getString(R.string.notification_ready_hint, version))
                 .setContentIntent(pending)
@@ -121,7 +121,7 @@ object Notifications {
 
     fun worker(ctx: Context): Notification =
         NotificationCompat.Builder(ctx, CHANNEL_UPDATES)
-            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(ctx.getString(R.string.auto_update_title))
             .setContentText(ctx.getString(R.string.notification_auto_update_running))
             .setOngoing(true)

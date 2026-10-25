@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 通知列小圖示：同一隻雨燕，放大到 24dp 畫布（通知圖示只取 alpha）。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+    <group
+        android:translateX="-22"
+        android:translateY="-22">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M54,58 C51,48 47,40 41,40 C35,40 29,45 24,52 C31,49 37,48 41,48 C46,48 51,56 54,68 C57,56 62,48 67,48 C71,48 77,49 84,52 C79,45 73,40 67,40 C61,40 57,48 54,58 Z" />
+    </group>
+</vector>

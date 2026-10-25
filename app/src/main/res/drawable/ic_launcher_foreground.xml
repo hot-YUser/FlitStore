@@ -1,20 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 自適應圖示前景：箭頭置中於 66dp 安全區內，同時作為單色主題圖示與啟動畫面圖示。 -->
+<!--
+  Flit：滑翔中的雨燕，兩翼在中央收成向下的尖點（輕、快、下載）。
+  置中於 66dp 安全區內，同時作為單色主題圖示與啟動畫面圖示。
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group
-        android:scaleX="1.4"
-        android:scaleY="1.4"
-        android:translateX="20.4"
-        android:translateY="18.3">
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M22,11h4v16.2l5.6,-5.6 2.8,2.8L24,34.8l-10.4,-10.4 2.8,-2.8L22,27.2z" />
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M14,37h20v3H14z" />
-    </group>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,58 C51,48 47,40 41,40 C35,40 29,45 24,52 C31,49 37,48 41,48 C46,48 51,56 54,68 C57,56 62,48 67,48 C71,48 77,49 84,52 C79,45 73,40 67,40 C61,40 57,48 54,58 Z" />
 </vector>
