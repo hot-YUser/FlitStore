@@ -1,24 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 13+ 單色主題圖示：純 Y 剪影（系統依桌布上色）。三塊分開畫，重疊處才不會被挖空。 -->
+<!--
+  Android 13+ 主題圖示：與彩色版相同的袋子剪影，Y 鏤空；
+  側邊與後提把降到 55% 不透明度，系統上色後仍分得出前後。
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group
-        android:pivotX="54"
-        android:pivotY="62.5"
-        android:scaleX="0.85"
-        android:scaleY="0.85"
-        android:translateY="-8.5">
-        <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M48,60 H60 V82 A6,6 0 0 1 48,82 Z" />
-        <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M54,57 C47,48 38,40 24,37 C33,45 42,55 48,66 L54,66 Z" />
-        <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M54,57 C61,48 70,40 84,37 C75,45 66,55 60,66 L54,66 Z" />
-    </group>
+    <path
+        android:pathData="M44.96,41.3 C44.96,25.29 64.59,25.29 64.59,41.3"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4.13"
+        android:strokeLineCap="round"
+        android:strokeAlpha="0.55" />
+    <path
+        android:pathData="M39.28,42.85 C39.28,27.87 58.91,27.87 58.91,42.85"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4.34"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M68.72,42.34 L77.4,45.85 Q78.64,46.37 78.64,47.71 L78.13,74.37 Q78.02,76.64 75.96,77.68 L70.38,80.57 Z"
+        android:fillColor="#FFFFFFFF"
+        android:fillAlpha="0.55" />
+    <path
+        android:pathData="M31.11,42.34 L67.07,42.34 Q68.72,42.34 68.83,43.99 L70.58,76.02 Q70.89,80.77 66.14,80.77 L36.69,80.77 Q31.94,80.77 32.25,76.02 L29.36,43.99 Q29.36,42.34 31.11,42.34 Z M34.13,46.08 A1.18,1.18 0 0 1 35.31,44.65 C40.52,45.46 46.47,50.42 49.82,56.99 C53.16,50.42 59.11,45.46 64.32,44.65 A1.18,1.18 0 0 1 65.5,46.08 C64.07,52.03 58.62,58.48 53.85,64.3 L53.85,74.84 A4.03,4.03 0 0 1 45.79,74.84 L45.79,64.3 C41.01,58.48 35.56,52.03 34.13,46.08 Z"
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd" />
 </vector>

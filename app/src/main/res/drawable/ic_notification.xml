@@ -1,21 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 通知列小圖示：純 Y 剪影（通知圖示只取 alpha）。三塊分開畫，重疊處才不會被挖空。 -->
+<!--
+  通知列小圖示：雨燕 Y 的剪影（通知圖示只取 alpha）。
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="64"
-    android:viewportHeight="64">
-    <group
-        android:translateX="-22"
-        android:translateY="-30.5">
-        <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M48,60 H60 V82 A6,6 0 0 1 48,82 Z" />
-        <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M54,57 C47,48 38,40 24,37 C33,45 42,55 48,66 L54,66 Z" />
-        <path
-            android:fillColor="#FFFFFFFF"
-            android:pathData="M54,57 C61,48 70,40 84,37 C75,45 66,55 60,66 L54,66 Z" />
-    </group>
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M2.83,2.83 A0.69,0.69 0 0 1 3.52,2 C6.57,2.47 10.04,5.37 12,9.21 C13.96,5.37 17.43,2.47 20.48,2 A0.69,0.69 0 0 1 21.17,2.83 C20.33,6.31 17.14,10.08 14.36,13.49 L14.36,19.64 A2.36,2.36 0 0 1 9.64,19.64 L9.64,13.49 C6.86,10.08 3.67,6.31 2.83,2.83 Z"
+        android:fillColor="#FFFFFFFF" />
 </vector>

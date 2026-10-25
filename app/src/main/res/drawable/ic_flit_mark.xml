@@ -1,43 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Flit 標誌：雨燕的 V 形雙翼長出尾巴成為 Y（呼應 YYB 的 Y）。
-  四色延續應用寶與 Google Play 的藍、紅、黃、綠：翼尖藍／紅，內側綠／黃一路延伸成尾巴。
+  Flit 標誌：雨燕的雙翼加上尾巴就是 Y，用應用寶的藍、桃紅、黃、薄荷綠四色。
+  左翼一筆掃進尾巴，由藍經青到綠；右翼由桃紅經珊瑚橘到黃，從上方壓過交會處，在尾巴上留下斜向的摺痕。
+  沿著 Y 走一圈正好是紅、黃、綠、藍的光譜順序，每個顏色只和相鄰的顏色交融。
   用於 Android 12+ 啟動畫面；置中於 66dp 安全區內。
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group
-        android:pivotX="54"
-        android:pivotY="62.5"
-        android:scaleX="0.85"
-        android:scaleY="0.85"
-        android:translateY="-8.5">
-        <path
-            android:fillColor="#FF34A853"
-            android:pathData="M48,60 H54 V88 A6,6 0 0 1 48,82 Z" />
-        <path
-            android:fillColor="#FFFBBC04"
-            android:pathData="M54,60 H60 V82 A6,6 0 0 1 54,88 Z" />
-        <path
-            android:fillColor="#FF34A853"
-            android:pathData="M54,57 C47,48 38,40 24,37 C33,45 42,55 48,66 L54,66 Z" />
-        <path
-            android:fillColor="#FFFBBC04"
-            android:pathData="M54,57 C61,48 70,40 84,37 C75,45 66,55 60,66 L54,66 Z" />
-        <group>
-            <clip-path android:pathData="M0,0 H44 V108 H0 Z" />
-            <path
-                android:fillColor="#FF4285F4"
-                android:pathData="M54,57 C47,48 38,40 24,37 C33,45 42,55 48,66 L54,66 Z" />
-        </group>
-        <group>
-            <clip-path android:pathData="M64,0 H108 V108 H64 Z" />
-            <path
-                android:fillColor="#FFEA4335"
-                android:pathData="M54,57 C61,48 70,40 84,37 C75,45 66,55 60,66 L54,66 Z" />
-        </group>
-    </group>
+    <path
+        android:pathData="M31.48,31.48 A1.69,1.69 0 0 1 33.17,29.44 C40.65,30.59 49.19,37.71 54,47.15 L59.79,55.87 L59.79,72.78 A5.79,5.79 0 0 1 48.22,72.78 L48.22,57.65 C41.36,49.28 33.53,40.03 31.48,31.48 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="31.75" android:startY="30.06" android:endX="54" android:endY="79.01">
+                <item android:offset="0" android:color="#FF1F6BFF" />
+                <item android:offset="0.42" android:color="#FF16AEF0" />
+                <item android:offset="0.78" android:color="#FF2BD6A9" />
+                <item android:offset="1" android:color="#FF16B98D" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M74.83,29.44 C67.35,30.59 58.81,37.71 54,47.15 C51.33,50.97 49.19,53.91 48.22,56.58 L59.79,63.88 L59.79,57.65 C66.64,49.28 74.47,40.03 76.52,31.48 A1.69,1.69 0 0 0 74.83,29.44 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="76.25" android:startY="30.06" android:endX="50.44" android:endY="61.21">
+                <item android:offset="0" android:color="#FFFF1060" />
+                <item android:offset="0.45" android:color="#FFFF5A3C" />
+                <item android:offset="0.85" android:color="#FFFFB400" />
+                <item android:offset="1" android:color="#FFFFD21F" />
+            </gradient>
+        </aapt:attr>
+    </path>
 </vector>

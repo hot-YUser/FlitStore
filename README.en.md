@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/assets/icon.svg" width="96" alt="FlitStore">
+  <img src=".github/assets/icon.webp" width="96" alt="FlitStore">
 </p>
 
 <h1 align="center">FlitStore</h1>

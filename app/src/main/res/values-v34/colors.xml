@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 14+：與 Compose 動態配色同一個 surface（也跟著系統的對比度設定變化）。 -->
+    <color name="window_background">@android:color/system_surface_light</color>
+</resources>
