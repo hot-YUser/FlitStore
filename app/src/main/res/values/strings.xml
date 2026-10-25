@@ -227,6 +227,7 @@
     <string name="notification_ready">Ready to install: %1$s</string>
     <string name="notification_ready_hint">Tap to install %1$s</string>
     <string name="notification_failed">Failed: %1$s</string>
+    <string name="notification_self_updated">Updated to %1$s · Tap to open</string>
     <string name="notification_auto_update_running">Updating apps in the background</string>
 
     <!-- 錯誤 -->

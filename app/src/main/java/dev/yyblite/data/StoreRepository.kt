@@ -44,7 +44,7 @@ data class DetailState(
  * 商店內容（探索、清單、詳情、搜尋、評論）。
  * 探索資料有磁碟快取，冷啟動先顯示上次內容；詳情與搜尋只放記憶體。
  */
-class StoreRepository(ctx: Context) {
+class StoreRepository(ctx: Context, private val self: SelfUpdate) {
     private val disk by lazy { KvFile(File(ctx.cacheDir, "discover.json")) }
     private val io = Executors.newFixedThreadPool(4) { r -> Thread(r, "store-io").apply { isDaemon = true } }
     private val flows = ConcurrentHashMap<String, MutableStateFlow<Load<Any>>>()
@@ -97,7 +97,7 @@ class StoreRepository(ctx: Context) {
         detailAt[pkg] = System.currentTimeMillis()
         flow.update { it.copy(app = it.app ?: seed, loadingApp = true, appError = null, notInStore = false) }
         io.execute {
-            when (val result = StoreClient.lookup(pkg)) {
+            when (val result = if (pkg == self.pkg) self.lookup() else StoreClient.lookup(pkg)) {
                 is LookupResult.Found -> flow.update { it.copy(app = result.app, loadingApp = false, appError = null) }
                 LookupResult.NotInStore -> flow.update { it.copy(loadingApp = false, notInStore = true) }
                 is LookupResult.Failed -> {
@@ -105,6 +105,11 @@ class StoreRepository(ctx: Context) {
                     flow.update { it.copy(loadingApp = false, appError = result.error) }
                 }
             }
+        }
+        // 自己不在應用寶上，沒有評分、評論可抓；更新說明已在 GitHub 的資料裡。
+        if (pkg == self.pkg) {
+            flow.update { it.copy(loadingDetail = false) }
+            return flow
         }
         io.execute {
             val detail = runCatching { DetailClient.fetch(pkg) }

@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import dev.yyblite.data.ErrorLog
 import dev.yyblite.data.IgnoreStore
+import dev.yyblite.data.SelfUpdate
 import dev.yyblite.data.Settings
 import dev.yyblite.data.StoreRepository
 import dev.yyblite.data.UpdateCache
@@ -43,8 +44,9 @@ class AppGraph(app: Application) {
     val settings by lazy { Settings(app) }
     val ignores by lazy { IgnoreStore(app) }
     val cache by lazy { UpdateCache(app) }
-    val updates by lazy { UpdateRepository(app, cache, ignores, settings) }
-    val store by lazy { StoreRepository(app) }
+    val selfUpdate by lazy { SelfUpdate(app) }
+    val updates by lazy { UpdateRepository(app, cache, ignores, settings, selfUpdate) }
+    val store by lazy { StoreRepository(app, selfUpdate) }
     val installer by lazy { InstallManager(app, settings) }
     val downloads by lazy { DownloadManager(app, installer, cache, updates, settings) }
 }

@@ -23,7 +23,7 @@ object InstalledApps {
         @Suppress("DEPRECATION")
         val packages = pm.getInstalledPackages(0)
         return packages.asSequence()
-            .filter { it.packageName in launchers && eligible(ctx, it) }
+            .filter { it.packageName in launchers && eligible(it) }
             .map { toInstalled(pm, it) }
             .sortedBy { it.label.lowercase() }
             .toList()
@@ -33,7 +33,7 @@ object InstalledApps {
     fun read(ctx: Context, pkg: String): InstalledApp? {
         val pm = ctx.packageManager
         val info = info(pm, pkg) ?: return null
-        if (!eligible(ctx, info) || pm.getLaunchIntentForPackage(pkg) == null) return null
+        if (!eligible(info) || pm.getLaunchIntentForPackage(pkg) == null) return null
         return toInstalled(pm, info)
     }
 
@@ -52,9 +52,9 @@ object InstalledApps {
         null
     }
 
-    private fun eligible(ctx: Context, info: PackageInfo): Boolean {
+    private fun eligible(info: PackageInfo): Boolean {
         val app = info.applicationInfo ?: return false
-        if (info.packageName == ctx.packageName || info.packageName in EXCLUDED) return false
+        if (info.packageName in EXCLUDED) return false
         if (!app.enabled) return false
         val isSystem = (app.flags and ApplicationInfo.FLAG_SYSTEM) != 0
         val updatedSystem = (app.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0

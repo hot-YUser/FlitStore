@@ -154,6 +154,9 @@ class DownloadManager(
         SegmentDownloader(Device.debugInt(ctx, "yyb_segments", 0).coerceIn(0, 512))
     }
 
+    /** 自己的更新檔放在 GitHub、只有約 2MB：分 4 段就夠，每段都要多跳一次轉址。 */
+    private val selfDownloader by lazy { SegmentDownloader(4) }
+
     fun enqueue(app: StoreApp) {
         if (_states.value[app.pkg]?.active == true) return
         queued(app)
@@ -328,7 +331,8 @@ class DownloadManager(
             var lastTime = SystemClock.elapsedRealtime()
             var speed = 0.0
             val url = Cdn.forceHost(request.url, Device.debugString(ctx, "yyb_host"))
-            downloader.downloadFull(url, request.md5.ifBlank { null }, part, token, report) { done, size ->
+            val engine = if (request.pkg == ctx.packageName) selfDownloader else downloader
+            engine.downloadFull(url, request.md5.ifBlank { null }, part, token, report) { done, size ->
                 val now = SystemClock.elapsedRealtime()
                 val dt = now - lastTime
                 if (dt >= 300) {
@@ -386,6 +390,7 @@ class DownloadManager(
     }
 
     private fun installDownloaded(request: DownloadRequest, file: File) {
+        if (request.pkg == ctx.packageName) awaitOthers(request.pkg)
         put(stateOf(request.pkg)?.copy(phase = DownloadPhase.INSTALLING, file = file))
         val downgrade = installer.downgradeInfo(file)
         if (downgrade != null) {
@@ -419,6 +424,14 @@ class DownloadManager(
                 put(stateOf(request.pkg)?.copy(phase = DownloadPhase.FAILED, error = error, file = file))
                 Notifications.failed(ctx, request.pkg, request.name, Problems.message(ctx, error))
             }
+        }
+    }
+
+    /** 裝上自己的新版時系統會結束這個行程：等其他下載與安裝都結束（最多 30 分鐘）再裝，免得一起中斷。 */
+    private fun awaitOthers(self: String) {
+        val deadline = SystemClock.elapsedRealtime() + 30 * 60_000L
+        while (SystemClock.elapsedRealtime() < deadline && _states.value.values.any { it.pkg != self && it.active }) {
+            Thread.sleep(1000)
         }
     }
 

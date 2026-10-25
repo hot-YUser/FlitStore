@@ -70,6 +70,7 @@ import dev.yyblite.core.store.StoreApp
 import dev.yyblite.core.store.StoreDetail
 import dev.yyblite.core.update.Verdict
 import dev.yyblite.data.AppStatus
+import dev.yyblite.data.SelfUpdate
 import dev.yyblite.download.DownloadPhase
 import dev.yyblite.download.DownloadState
 import dev.yyblite.graph
@@ -180,7 +181,10 @@ private fun DetailMenu(app: StoreApp, status: AppStatus, expanded: Boolean, onDi
             leadingIcon = { Glyph(R.drawable.ic_open_in_new) },
             onClick = {
                 runCatching {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, "https://sj.qq.com/appdetail/${app.pkg}".toUri()))
+                    // 自己不在應用寶上，改開 GitHub 的發行頁。
+                    val page = if (app.pkg == context.packageName) "https://github.com/${SelfUpdate.REPO}/releases/latest"
+                    else "https://sj.qq.com/appdetail/${app.pkg}"
+                    context.startActivity(Intent(Intent.ACTION_VIEW, page.toUri()))
                 }
                 onDismiss()
             }
@@ -559,7 +563,8 @@ private fun Info(app: StoreApp, detail: StoreDetail?) {
         app.developer?.let { InfoRow(stringResource(R.string.detail_developer), it) }
         (detail?.operator ?: app.operator)?.let { InfoRow(stringResource(R.string.detail_operator), it) }
         app.icp?.let { InfoRow(stringResource(R.string.detail_icp), it) }
-        if (app.detailed) {
+        // 自己的 APK 不分架構，「32 位元」是照應用寶連結推論的，不適用。
+        if (app.detailed && app.pkg != context.packageName) {
             InfoRow(
                 stringResource(R.string.detail_abi),
                 stringResource(if (Device.abiTag(app) == "arm64") R.string.detail_abi64 else R.string.detail_abi32)

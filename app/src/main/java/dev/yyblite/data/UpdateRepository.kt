@@ -69,7 +69,8 @@ class UpdateRepository(
     private val ctx: Context,
     private val cache: UpdateCache,
     private val ignores: IgnoreStore,
-    private val settings: Settings
+    private val settings: Settings,
+    private val self: SelfUpdate
 ) {
     private val _state = MutableStateFlow(UpdatesState())
     val state: StateFlow<UpdatesState> = _state
@@ -104,13 +105,13 @@ class UpdateRepository(
         if (!loaded || System.currentTimeMillis() - cache.checkedAt > maxAgeMs) refresh()
     }
 
-    /** 背景 Worker 用：等目前（或新開的一輪）檢查結束，回傳可提供的更新。 */
+    /** 背景 Worker 用：等目前（或新開的一輪）檢查結束，回傳可提供的更新；自己排最後，免得更新自己時中斷其他應用。 */
     fun checkBlocking(): List<StoreApp> {
         start(BACKGROUND_THREADS).await(15, TimeUnit.MINUTES)
         return entries.values
             .filter { it.verdict?.offered == true }
             .mapNotNull { it.store }
-            .sortedBy { it.name.lowercase() }
+            .sortedWith(compareBy({ it.pkg == self.pkg }, { it.name.lowercase() }))
     }
 
     fun statusOf(store: StoreApp, snapshot: UpdatesState = _state.value): AppStatus {
@@ -138,7 +139,7 @@ class UpdateRepository(
         val cached = cache.get(pkg)
         entries[pkg] = cached?.let { evaluate(installed, it, EntryStatus.CACHED) } ?: UpdateEntry(installed)
         publish()
-        apply(pkg, StoreClient.lookup(pkg))
+        apply(pkg, lookup(pkg))
         publish()
     }
 
@@ -150,7 +151,7 @@ class UpdateRepository(
 
     fun recheck(pkg: String) = events.execute {
         if (entries[pkg] == null) return@execute
-        apply(pkg, StoreClient.lookup(pkg))
+        apply(pkg, lookup(pkg))
         publish()
     }
 
@@ -211,11 +212,11 @@ class UpdateRepository(
             val cached = cache.get(app.pkg)
             entries[app.pkg] = when {
                 cached != null -> evaluate(app, cached, EntryStatus.CACHED)
-                cache.isNotFoundFresh(app.pkg) -> UpdateEntry(app, status = EntryStatus.NOT_IN_STORE)
+                notFoundFresh(app.pkg) -> UpdateEntry(app, status = EntryStatus.NOT_IN_STORE)
                 else -> UpdateEntry(app)
             }
         }
-        val toCheck = installed.filterNot { cache.isNotFoundFresh(it.pkg) }
+        val toCheck = installed.filterNot { notFoundFresh(it.pkg) }
         loaded = true
         scanning = false
         checking = true
@@ -251,10 +252,10 @@ class UpdateRepository(
             for (app in apps) {
                 pool.execute {
                     try {
-                        var result = StoreClient.lookup(app.pkg)
+                        var result = lookup(app.pkg)
                         if (result is LookupResult.Failed) {
                             Thread.sleep(400)
-                            result = StoreClient.lookup(app.pkg)
+                            result = lookup(app.pkg)
                         }
                         runCatching { onResult(app, result) }
                     } finally {
@@ -267,6 +268,12 @@ class UpdateRepository(
             pool.shutdownNow()
         }
     }
+
+    /** 自己從 GitHub Releases 查，其他應用查應用寶。 */
+    private fun lookup(pkg: String): LookupResult =
+        if (pkg == self.pkg) self.lookup() else StoreClient.lookup(pkg)
+
+    private fun notFoundFresh(pkg: String): Boolean = pkg != self.pkg && cache.isNotFoundFresh(pkg)
 
     private fun apply(pkg: String, result: LookupResult) {
         val installed = entries[pkg]?.installed ?: return
@@ -296,7 +303,7 @@ class UpdateRepository(
     private fun probeBuilds() {
         for (entry in entries.values) {
             val store = entry.store ?: continue
-            if (entry.verdict != Verdict.UpToDate) continue
+            if (entry.verdict != Verdict.UpToDate || store.pkg == self.pkg) continue
             if (VersionOrder.compare(store.versionName, entry.installed.versionName) != 0) continue
             val url = Device.urlFor(store)
             val md5 = Abi.md5For(store, url)

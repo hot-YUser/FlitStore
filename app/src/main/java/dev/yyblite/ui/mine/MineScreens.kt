@@ -72,6 +72,7 @@ import dev.yyblite.data.EntryStatus
 import dev.yyblite.data.ErrorLog
 import dev.yyblite.data.InstallerMode
 import dev.yyblite.data.Settings as AppSettings
+import dev.yyblite.data.SelfUpdate
 import dev.yyblite.data.UpdateEntry
 import dev.yyblite.download.ApkFiles
 import dev.yyblite.download.DownloadPhase
@@ -97,7 +98,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-private const val SOURCE_URL = "https://github.com/hot-YUser/FlitStore"
+private const val SOURCE_URL = "https://github.com/${SelfUpdate.REPO}"
 
 /** 已安裝應用與各自的商店狀態，可依名稱或套件名篩選。 */
 @Composable

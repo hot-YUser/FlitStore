@@ -25,6 +25,7 @@ object Notifications {
     const val ID_DOWNLOADS = 1001
     const val ID_UPDATES = 2001
     const val ID_WORKER = 2002
+    private const val ID_SELF_UPDATED = 2003
 
     fun ensureChannels(ctx: Context) {
         NotificationManagerCompat.from(ctx).createNotificationChannelsCompat(
@@ -113,6 +114,19 @@ object Notifications {
                 .setContentTitle(ctx.getString(R.string.notification_failed, name))
                 .setContentText(message)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+                .setContentIntent(openApp(ctx, MainActivity.TAB_UPDATES))
+                .setAutoCancel(true)
+                .build()
+        )
+    }
+
+    fun selfUpdated(ctx: Context, version: String) {
+        post(
+            ctx, ID_SELF_UPDATED,
+            NotificationCompat.Builder(ctx, CHANNEL_UPDATES)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle(ctx.getString(R.string.app_name))
+                .setContentText(ctx.getString(R.string.notification_self_updated, version))
                 .setContentIntent(openApp(ctx, MainActivity.TAB_UPDATES))
                 .setAutoCancel(true)
                 .build()

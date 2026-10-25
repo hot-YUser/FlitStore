@@ -216,6 +216,7 @@
     <string name="notification_ready">可以安装了：%1$s</string>
     <string name="notification_ready_hint">点按安装 %1$s</string>
     <string name="notification_failed">失败：%1$s</string>
+    <string name="notification_self_updated">已更新到 %1$s・点一下打开</string>
     <string name="notification_auto_update_running">正在后台更新应用</string>
 
     <!-- 错误 -->
