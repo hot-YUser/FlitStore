@@ -41,6 +41,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import dev.yyblite.data.InstallerKind
+import dev.yyblite.data.Settings as AppSettings
 import dev.yyblite.download.DownloadState
 import dev.yyblite.platform.AppVisibility
 import dev.yyblite.ui.HomeScreen
@@ -74,6 +75,7 @@ import kotlinx.coroutines.withContext
 class MainModel : ViewModel() {
     val navigator = Navigator()
     var tab by mutableStateOf(HomeTab.Explore)
+    var initialized = false
 }
 
 class MainActivity : ComponentActivity() {
@@ -83,6 +85,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         model = ViewModelProvider(this)[MainModel::class.java]
+        if (!model.initialized) {
+            model.tab = startTab(graph.settings)
+            model.initialized = true
+        }
         if (savedInstanceState == null) handle(intent)
         graph.updates.refreshIfStale()
         setContent { YybTheme { App(this, model) } }
@@ -101,6 +107,12 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         AppVisibility.onStop()
         super.onStop()
+    }
+
+    /** 設定指定的分頁；選了「上次使用」就回到上次離開時的分頁。 */
+    private fun startTab(settings: AppSettings): HomeTab {
+        val name = if (settings.startTab == AppSettings.START_LAST) settings.lastTab else settings.startTab
+        return HomeTab.entries.firstOrNull { it.name == name } ?: HomeTab.Explore
     }
 
     private fun handle(intent: Intent?) {
@@ -163,7 +175,10 @@ private fun App(activity: ComponentActivity, model: MainModel) {
         Box(Modifier.fillMaxSize()) {
             NavHost(navigator) { entry ->
                 when (val route = entry.route) {
-                    Route.Home -> HomeScreen(model.tab) { model.tab = it }
+                    Route.Home -> HomeScreen(model.tab) {
+                        model.tab = it
+                        graph.settings.lastTab = it.name
+                    }
                     is Route.Detail -> DetailScreen(route)
                     is Route.Reviews -> ReviewsScreen(route)
                     is Route.Apps -> AppsScreen(route)

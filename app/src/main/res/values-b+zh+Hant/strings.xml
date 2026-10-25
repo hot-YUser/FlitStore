@@ -144,6 +144,8 @@
     <string name="settings_general">一般</string>
     <string name="settings_language">語言</string>
     <string name="settings_language_hint">跟隨系統，或為這個應用另選語言</string>
+    <string name="settings_start_tab">開啟時顯示</string>
+    <string name="start_tab_last">上次使用的分頁</string>
     <string name="auto_update_title">自動更新</string>
 
     <!-- 詳情 -->

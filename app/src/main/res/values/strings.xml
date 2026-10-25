@@ -152,6 +152,8 @@
     <string name="settings_general">General</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_hint">Follow the system or choose a language for this app</string>
+    <string name="settings_start_tab">Open on</string>
+    <string name="start_tab_last">Last used tab</string>
     <string name="auto_update_title">Automatic updates</string>
 
     <!-- 詳情 -->

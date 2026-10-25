@@ -43,6 +43,15 @@ class Settings(ctx: Context) {
         auto.edit { putLong("$pkg@$version", System.currentTimeMillis()) }
     }
 
+    /** 開啟時顯示的分頁：分頁名稱，或 [START_LAST] 表示回到上次離開的分頁。 */
+    var startTab: String
+        get() = ui.getString("start_tab", null) ?: START_DEFAULT
+        set(value) = ui.edit { putString("start_tab", value) }
+
+    var lastTab: String?
+        get() = ui.getString("last_tab", null)
+        set(value) = ui.edit { putString("last_tab", value) }
+
     var overlayAsked: Boolean
         get() = ui.getBoolean("overlay_asked", false)
         set(value) = ui.edit { putBoolean("overlay_asked", value) }
@@ -62,8 +71,10 @@ class Settings(ctx: Context) {
     private inline fun <reified T : Enum<T>> enumOr(name: String?, default: T): T =
         runCatching { enumValueOf<T>(name!!) }.getOrDefault(default)
 
-    private companion object {
-        const val AUTO_COOLDOWN_MS = 12L * 60 * 60 * 1000
-        const val HISTORY_SIZE = 12
+    companion object {
+        const val START_LAST = "LAST"
+        const val START_DEFAULT = "Explore"
+        private const val AUTO_COOLDOWN_MS = 12L * 60 * 60 * 1000
+        private const val HISTORY_SIZE = 12
     }
 }

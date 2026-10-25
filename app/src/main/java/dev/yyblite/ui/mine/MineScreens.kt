@@ -72,6 +72,7 @@ import dev.yyblite.data.DexoptMode
 import dev.yyblite.data.EntryStatus
 import dev.yyblite.data.ErrorLog
 import dev.yyblite.data.InstallerMode
+import dev.yyblite.data.Settings as AppSettings
 import dev.yyblite.data.UpdateEntry
 import dev.yyblite.download.ApkFiles
 import dev.yyblite.download.DownloadPhase
@@ -81,6 +82,7 @@ import dev.yyblite.install.InstallerStatus
 import dev.yyblite.install.ShizukuInstaller
 import dev.yyblite.platform.Problems
 import dev.yyblite.ui.Format
+import dev.yyblite.ui.HomeTab
 import dev.yyblite.ui.common.AppIcon
 import dev.yyblite.ui.common.Glyph
 import dev.yyblite.ui.common.InstalledRow
@@ -317,6 +319,8 @@ fun SettingsScreen() {
     var mode by remember { mutableStateOf(settings.installerMode) }
     var fast by remember { mutableStateOf(settings.dexoptMode == DexoptMode.FAST) }
     var auto by remember { mutableStateOf(settings.autoUpdate) }
+    var startTab by remember { mutableStateOf(settings.startTab) }
+    var pickStart by remember { mutableStateOf(false) }
     val overlay = remember(refresh) { Settings.canDrawOverlays(context) }
 
     SubScreen(stringResource(R.string.mine_settings)) { padding ->
@@ -379,8 +383,15 @@ fun SettingsScreen() {
                     trailingContent = { Glyph(R.drawable.ic_open_in_new) }
                 ) { Text(stringResource(R.string.settings_overlay)) }
             }
+            item { SectionHeader(stringResource(R.string.settings_general)) }
+            item {
+                ListItem(
+                    onClick = { pickStart = true },
+                    supportingContent = { Text(stringResource(startTabLabel(startTab))) },
+                    leadingContent = { Glyph(R.drawable.ic_tab) }
+                ) { Text(stringResource(R.string.settings_start_tab)) }
+            }
             if (Build.VERSION.SDK_INT >= 33) {
-                item { SectionHeader(stringResource(R.string.settings_general)) }
                 item {
                     ListItem(
                         onClick = {
@@ -396,7 +407,41 @@ fun SettingsScreen() {
             }
         }
     }
+
+    if (pickStart) {
+        AlertDialog(
+            onDismissRequest = { pickStart = false },
+            title = { Text(stringResource(R.string.settings_start_tab)) },
+            text = {
+                Column {
+                    START_TABS.forEach { value ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    startTab = value
+                                    settings.startTab = value
+                                    pickStart = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = startTab == value, onClick = null)
+                            Spacer(Modifier.width(16.dp))
+                            Text(stringResource(startTabLabel(value)), style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { pickStart = false }) { Text(stringResource(R.string.action_cancel)) } }
+        )
+    }
 }
+
+private val START_TABS = HomeTab.entries.map { it.name } + AppSettings.START_LAST
+
+private fun startTabLabel(value: String): Int =
+    HomeTab.entries.firstOrNull { it.name == value }?.label ?: R.string.start_tab_last
 
 @Composable
 private fun modeStatus(mode: InstallerMode, status: InstallerStatus?): String = when (mode) {
