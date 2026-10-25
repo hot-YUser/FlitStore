@@ -75,10 +75,12 @@ fun rememberImage(url: String?, sizePx: Int, fallbackPkg: String? = null): Image
     var image by remember(url, fallbackPkg) {
         mutableStateOf(url?.let { ThumbCache.memory(it, sizePx) } ?: fallbackPkg?.let(ThumbCache::cachedInstalled))
     }
-    DisposableEffect(url, sizePx) {
+    DisposableEffect(url, sizePx, fallbackPkg) {
         var active = true
         if (url != null && ThumbCache.memory(url, sizePx) == null) {
             ThumbCache.load(context, url, sizePx) { bitmap -> mainHandler.post { if (active) image = bitmap } }
+        } else if (url == null && fallbackPkg != null && image == null) {
+            ThumbCache.loadInstalled(context, fallbackPkg) { bitmap -> mainHandler.post { if (active) image = bitmap } }
         }
         onDispose { active = false }
     }

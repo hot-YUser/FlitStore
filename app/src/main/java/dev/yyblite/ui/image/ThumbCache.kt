@@ -56,6 +56,11 @@ object ThumbCache {
 
     fun cachedInstalled(pkg: String): ImageBitmap? = installedIcons.get(pkg)
 
+    /** 快取被擠掉或還沒預載時，在背景向 PackageManager 取圖示。回呼在背景執行緒。 */
+    fun loadInstalled(ctx: Context, pkg: String, onLoaded: (ImageBitmap) -> Unit) {
+        installedIcons.get(pkg)?.let(onLoaded) ?: diskPool.execute { installed(ctx, pkg)?.let(onLoaded) }
+    }
+
     /** 非同步載入；同一張圖同時被多處要求時只抓一次。回呼在背景執行緒。 */
     fun load(ctx: Context, url: String, sizePx: Int, onLoaded: (ImageBitmap) -> Unit) {
         val key = key(url, sizePx)

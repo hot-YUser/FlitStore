@@ -103,6 +103,7 @@ private const val SOURCE_URL = "https://github.com/hot-YUser/FlitStore"
 @Composable
 fun InstalledScreen() {
     val navigator = LocalNavigator.current
+    val actions = LocalActions.current
     val updates = LocalUpdates.current
     var filter by remember { mutableStateOf("") }
     val entries = updates.all.filter {
@@ -126,7 +127,10 @@ fun InstalledScreen() {
                     pkg = entry.installed.pkg,
                     label = entry.installed.label,
                     supporting = statusLine(entry),
-                    onClick = { navigator.push(Route.Detail(entry.installed.pkg, entry.store, "installed")) }
+                    onClick = {
+                        if (entry.status == EntryStatus.NOT_IN_STORE) actions.message(R.string.detail_not_in_store)
+                        else navigator.push(Route.Detail(entry.installed.pkg, entry.store, "installed"))
+                    }
                 )
             }
         }
