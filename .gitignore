@@ -10,3 +10,4 @@ shot-*.png
 keystore/
 *.jks
 *.keystore
+dist/
