@@ -40,6 +40,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import dev.yyblite.core.store.StoreClient
+import dev.yyblite.core.store.StoreLink
 import dev.yyblite.data.InstallerKind
 import dev.yyblite.data.Settings as AppSettings
 import dev.yyblite.download.DownloadState
@@ -69,6 +72,7 @@ import dev.yyblite.ui.nav.Route
 import dev.yyblite.ui.search.SearchScreen
 import dev.yyblite.ui.theme.YybTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** 返回堆疊與目前分頁跨設定變更（旋轉、深色模式切換）保留。 */
@@ -119,6 +123,19 @@ class MainActivity : ComponentActivity() {
         if (intent?.getStringExtra(EXTRA_TAB) == TAB_UPDATES) {
             model.navigator.popToHome()
             model.tab = HomeTab.Updates
+        }
+        // 從應用寶網頁、market:// 等商店連結進來時直接開該應用的詳情頁；
+        // 只帶內部編號的連結先在背景換成套件名稱，查不到就停在首頁。
+        val link = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.dataString ?: return
+        val pkg = StoreLink.packageName(link)
+        if (pkg != null) {
+            model.navigator.push(Route.Detail(pkg, null, "link"))
+            return
+        }
+        val appId = StoreLink.appId(link) ?: return
+        lifecycleScope.launch {
+            val resolved = withContext(Dispatchers.IO) { runCatching { StoreClient.packageForAppId(appId) }.getOrNull() }
+            if (resolved != null) model.navigator.push(Route.Detail(resolved, null, "link"))
         }
     }
 

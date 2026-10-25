@@ -39,6 +39,42 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- 應用寶網頁的「安裝」按鈕：裝了應用寶時系統會讓使用者選擇，沒裝就直接由這裡開啟。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="tmast" />
+                <data android:host="appdetails" />
+                <data android:host="gamedetail" />
+                <data android:host="appdemo" />
+                <data android:host="found" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="market" android:host="details" />
+            </intent-filter>
+            <!-- 網址無法驗證網域，Android 12+ 需要使用者在「預設開啟」自行加入。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:scheme="http" />
+                <data android:host="sj.qq.com" />
+                <data android:pathPrefix="/appdetail/" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:scheme="http" />
+                <data android:host="a.app.qq.com" />
+                <data android:path="/o/simple.jsp" />
+            </intent-filter>
         </activity>
 
         <service

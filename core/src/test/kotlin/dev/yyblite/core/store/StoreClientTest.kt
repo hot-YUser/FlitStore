@@ -25,6 +25,13 @@ class StoreClientTest {
         assertFalse(app.versionName.isBlank())
     }
 
+    /** 網頁「官方下载」只帶內部編號；王者榮耀是 12127266。 */
+    @Test
+    fun appIdToPackage() {
+        assertEquals("com.tencent.tmgp.sgame", live { StoreClient.packageForAppId("12127266") })
+        assertEquals(null, live { StoreClient.packageForAppId("99999999999") })
+    }
+
     @Test
     fun lookupMissing() {
         val result = StoreClient.lookup("com.nonexist.fakepkg12345")

@@ -48,6 +48,23 @@ object StoreClient {
     }
 
     /**
+     * 應用寶內部編號換套件名稱：`sj.qq.com/appdetail/<編號>` 會 308 轉到 `/appdetail/<套件名>`，
+     * 只讀轉址標頭、不下載頁面。查不到回 null。
+     */
+    fun packageForAppId(appId: String): String? {
+        if (!appId.all(Char::isDigit) || appId.isEmpty()) return null
+        val conn = Http.open("https://sj.qq.com/appdetail/$appId")
+        conn.instanceFollowRedirects = false
+        try {
+            if (conn.responseCode !in 300..399) return null
+            val location = conn.getHeaderField("Location") ?: return null
+            return StoreLink.packageName(if (location.startsWith("/")) "https://sj.qq.com$location" else location)
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    /**
      * 邊讀邊找：`window.systemData` 約在第 50KB，找到完整 JSON 即斷線，
      * 不必下載整頁 364KB。找不到才讀到 96KB（未收錄頁面）。
      */
