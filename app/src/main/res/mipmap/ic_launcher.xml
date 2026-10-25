@@ -1,29 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 7.x 沒有自適應圖示：同一隻雨燕放在圓角方形漸層底上。 -->
+<!-- Android 7.x 沒有自適應圖示：灰底圓角方形 + 白色購物袋 + 四色 Y，與新版桌面圖示相同。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="48dp"
     android:height="48dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:pathData="M30,6h48a24,24 0 0 1 24,24v48a24,24 0 0 1 -24,24h-48a24,24 0 0 1 -24,-24v-48a24,24 0 0 1 24,-24z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:endX="102"
-                android:endY="102"
-                android:startX="6"
-                android:startY="6"
-                android:type="linear">
-                <item
-                    android:color="#FF3D8BFF"
-                    android:offset="0" />
-                <item
-                    android:color="#FF1A56C9"
-                    android:offset="1" />
-            </gradient>
-        </aapt:attr>
-    </path>
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,58 C51,48 47,40 41,40 C35,40 29,45 24,52 C31,49 37,48 41,48 C46,48 51,56 54,68 C57,56 62,48 67,48 C71,48 77,49 84,52 C79,45 73,40 67,40 C61,40 57,48 54,58 Z" />
+        android:fillColor="#FFE8EAED"
+        android:pathData="M30,6h48a24,24 0 0 1 24,24v48a24,24 0 0 1 -24,24h-48a24,24 0 0 1 -24,-24v-48a24,24 0 0 1 24,-24z" />
+    <group
+        android:pivotX="54"
+        android:pivotY="61.5"
+        android:scaleX="1.1"
+        android:scaleY="1.1"
+        android:translateY="-7.5">
+        <path
+            android:pathData="M43,48 C43,36 65,36 65,48"
+            android:strokeWidth="4"
+            android:strokeColor="#FF5F6368"
+            android:strokeLineCap="round" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M30,47 H78 Q82,47 81.5,51 L78,79 Q77.4,84 72.4,84 H35.6 Q30.6,84 30,79 L26.5,51 Q26,47 30,47 Z" />
+        <group
+            android:pivotX="54"
+            android:pivotY="62.5"
+            android:scaleX="0.6"
+            android:scaleY="0.6"
+            android:translateY="3.5">
+            <path
+                android:fillColor="#FF34A853"
+                android:pathData="M48,60 H54 V88 A6,6 0 0 1 48,82 Z" />
+            <path
+                android:fillColor="#FFFBBC04"
+                android:pathData="M54,60 H60 V82 A6,6 0 0 1 54,88 Z" />
+            <path
+                android:fillColor="#FF34A853"
+                android:pathData="M54,57 C47,48 38,40 24,37 C33,45 42,55 48,66 L54,66 Z" />
+            <path
+                android:fillColor="#FFFBBC04"
+                android:pathData="M54,57 C61,48 70,40 84,37 C75,45 66,55 60,66 L54,66 Z" />
+            <group>
+                <clip-path android:pathData="M0,0 H44 V108 H0 Z" />
+                <path
+                    android:fillColor="#FF4285F4"
+                    android:pathData="M54,57 C47,48 38,40 24,37 C33,45 42,55 48,66 L54,66 Z" />
+            </group>
+            <group>
+                <clip-path android:pathData="M64,0 H108 V108 H64 Z" />
+                <path
+                    android:fillColor="#FFEA4335"
+                    android:pathData="M54,57 C61,48 70,40 84,37 C75,45 66,55 60,66 L54,66 Z" />
+            </group>
+        </group>
+    </group>
 </vector>

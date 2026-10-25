@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 通知列小圖示：同一隻雨燕，放大到 24dp 畫布（通知圖示只取 alpha）。 -->
+<!-- 通知列小圖示：純 Y 剪影（通知圖示只取 alpha）。三塊分開畫，重疊處才不會被挖空。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -7,9 +7,15 @@
     android:viewportHeight="64">
     <group
         android:translateX="-22"
-        android:translateY="-22">
+        android:translateY="-30.5">
         <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M54,58 C51,48 47,40 41,40 C35,40 29,45 24,52 C31,49 37,48 41,48 C46,48 51,56 54,68 C57,56 62,48 67,48 C71,48 77,49 84,52 C79,45 73,40 67,40 C61,40 57,48 54,58 Z" />
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M48,60 H60 V82 A6,6 0 0 1 48,82 Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M54,57 C47,48 38,40 24,37 C33,45 42,55 48,66 L54,66 Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M54,57 C61,48 70,40 84,37 C75,45 66,55 60,66 L54,66 Z" />
     </group>
 </vector>
