@@ -10,6 +10,7 @@ import dev.yyblite.core.apk.Abi
 import dev.yyblite.core.download.CancelToken
 import dev.yyblite.core.download.Cdn
 import dev.yyblite.core.download.DownloadCancelledException
+import dev.yyblite.core.download.DownloadReport
 import dev.yyblite.core.download.SegmentDownloader
 import dev.yyblite.core.download.TaskGate
 import dev.yyblite.core.store.LookupResult
@@ -33,6 +34,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import java.io.File
 import java.io.IOException
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -314,6 +316,7 @@ class DownloadManager(
         val startedAt = SystemClock.elapsedRealtime()
         val target = ApkFiles.file(ctx, request.pkg, request.version, request.abi)
         val part = target?.let { File(it.path + ".part") }
+        val report = DownloadReport()
         try {
             if (target == null || part == null) throw StorageUnavailableException()
             target.parentFile?.let { if (!it.exists() && !it.mkdirs()) throw StorageUnavailableException() }
@@ -325,7 +328,7 @@ class DownloadManager(
             var lastTime = SystemClock.elapsedRealtime()
             var speed = 0.0
             val url = Cdn.forceHost(request.url, Device.debugString(ctx, "yyb_host"))
-            downloader.downloadFull(url, request.md5.ifBlank { null }, part, token) { done, size ->
+            downloader.downloadFull(url, request.md5.ifBlank { null }, part, token, report) { done, size ->
                 val now = SystemClock.elapsedRealtime()
                 val dt = now - lastTime
                 if (dt >= 300) {
@@ -339,7 +342,14 @@ class DownloadManager(
 
             if (target.exists() && !target.delete()) throw IOException("cannot replace old file")
             if (!part.renameTo(target)) throw IOException("cannot rename download")
-            Log.i(TAG, "download done ${request.pkg} ${target.length()} bytes in ${SystemClock.elapsedRealtime() - startedAt}ms")
+            val elapsed = (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(1)
+            val bytes = target.length()
+            Log.i(TAG, "download done ${request.pkg} $bytes bytes in ${elapsed}ms $report")
+            val rate = bytes * 1000 / elapsed
+            if (report.degraded || (bytes >= SLOW_MIN_BYTES && rate < SLOW_BPS)) {
+                val summary = String.format(Locale.US, "%.1fMB in %.0fs = %dKB/s", bytes / 1048576.0, elapsed / 1000.0, rate / 1024)
+                ErrorLog.record("download", "${request.pkg} slow: $summary | $report")
+            }
 
             put(stateOf(request.pkg)?.copy(phase = DownloadPhase.VERIFYING, file = target))
             if (!request.signature.isNullOrBlank()) {
@@ -366,7 +376,7 @@ class DownloadManager(
                 return null
             }
             Log.w(TAG, "fail ${request.pkg}: ${e.message}", e)
-            ErrorLog.record("download", "${request.pkg}: ${e.message}")
+            ErrorLog.record("download", "${request.pkg}: ${e.message} | $report")
             fail(request.pkg, e)
             return null
         } finally {
@@ -452,5 +462,9 @@ class DownloadManager(
 
     private companion object {
         const val TAG = "YYBDL"
+
+        /** 平均低於 1 MB/s（8 MB 以上的檔案）就寫進診斷記錄，方便使用者回報。 */
+        const val SLOW_BPS = 1L shl 20
+        const val SLOW_MIN_BYTES = 8L shl 20
     }
 }

@@ -1,17 +1,25 @@
 package dev.yyblite.core.download
 
+import com.sun.net.httpserver.HttpExchange
+import com.sun.net.httpserver.HttpServer
 import dev.yyblite.core.net.Http
 import dev.yyblite.core.store.LookupResult
 import dev.yyblite.core.store.StoreClient
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Assume
 import org.junit.Test
 import java.io.File
+import java.net.InetSocketAddress
 import java.security.MessageDigest
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
+import kotlin.random.Random
 
 class SegmentDownloaderTest {
 
@@ -75,6 +83,135 @@ class SegmentDownloaderTest {
         assertFalse("partial file left behind", dest.exists() && dest.length() > 0)
         dest.delete()
     }
+
+    /** 前十幾個請求被限流、每第 9 個請求中途斷線：要續傳完成、降低併發，且不退回單連線。 */
+    @Test
+    fun survivesThrottlingAndDrops() {
+        val body = Random(42).nextBytes(3 * 1024 * 1024)
+        FakeCdn(body) { n -> if (n in 2..13) Mode.THROTTLE else if (n % 9 == 0) Mode.TRUNCATE else Mode.OK }.use { cdn ->
+            val report = DownloadReport()
+            val dest = File.createTempFile("flaky", ".apk")
+            try {
+                SegmentDownloader(16).download(listOf(cdn.url), md5(body), dest, CancelToken(), report) { _, _ -> }
+                assertArrayEquals(body, dest.readBytes())
+                assertTrue(report.throttled.get() > 0)
+                assertTrue(report.retries.get() > 0)
+                assertTrue(report.lowestParallel < 16)
+                assertFalse(report.sequential)
+            } finally {
+                dest.delete()
+            }
+        }
+    }
+
+    /** 一台鏡像對分段一律回驗證頁時，被擋的分段要換到另一台完成。 */
+    @Test
+    fun challengedSegmentsMoveToMirror() {
+        val body = Random(7).nextBytes(2 * 1024 * 1024)
+        FakeCdn(body) { n -> if (n == 1) Mode.OK else Mode.CHALLENGE }.use { bad ->
+            FakeCdn(body) { Mode.OK }.use { good ->
+                val report = DownloadReport()
+                val dest = File.createTempFile("mirror", ".apk")
+                try {
+                    SegmentDownloader(8).download(listOf(bad.url, good.url), md5(body), dest, CancelToken(), report) { _, _ -> }
+                    assertArrayEquals(body, dest.readBytes())
+                    assertTrue(report.switches.get() > 0)
+                    assertFalse(report.sequential)
+                } finally {
+                    dest.delete()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun ignoredRangeFallsBackToSingleConnection() {
+        val body = Random(3).nextBytes(512 * 1024)
+        FakeCdn(body) { Mode.IGNORE_RANGE }.use { cdn ->
+            val report = DownloadReport()
+            val dest = File.createTempFile("norange", ".apk")
+            try {
+                SegmentDownloader(8).download(listOf(cdn.url), md5(body), dest, CancelToken(), report) { _, _ -> }
+                assertArrayEquals(body, dest.readBytes())
+                assertTrue(report.sequential)
+            } finally {
+                dest.delete()
+            }
+        }
+    }
+
+    @Test
+    fun persistentThrottlingFails() {
+        FakeCdn(ByteArray(1024)) { Mode.THROTTLE }.use { cdn ->
+            val dest = File.createTempFile("blocked", ".apk")
+            try {
+                assertThrows(ThrottledException::class.java) {
+                    SegmentDownloader(4).download(listOf(cdn.url), null, dest, CancelToken(), DownloadReport()) { _, _ -> }
+                }
+            } finally {
+                dest.delete()
+            }
+        }
+    }
+
+    private enum class Mode { OK, THROTTLE, CHALLENGE, TRUNCATE, IGNORE_RANGE }
+
+    /** 本機假 CDN：[mode] 依請求序號（從 1 起算）決定這次怎麼回應。 */
+    private class FakeCdn(private val body: ByteArray, private val mode: (Int) -> Mode) : AutoCloseable {
+        private val count = AtomicInteger()
+        private val pool = Executors.newCachedThreadPool()
+        private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
+            executor = pool
+            createContext("/") { ex -> respond(ex) }
+            start()
+        }
+        val url = "http://127.0.0.1:${server.address.port}/app.apk"
+
+        private fun respond(ex: HttpExchange) {
+            try {
+                val range = ex.requestHeaders.getFirst("Range")?.removePrefix("bytes=")?.split('-')
+                val current = mode(count.incrementAndGet())
+                when (current) {
+                    Mode.THROTTLE -> ex.sendResponseHeaders(429, -1)
+                    Mode.CHALLENGE -> send(ex, 200, "text/html", "<html>verify</html>".toByteArray())
+                    Mode.IGNORE_RANGE -> send(ex, 200, APK, body)
+                    Mode.OK, Mode.TRUNCATE -> {
+                        if (range == null) return send(ex, 200, APK, body)
+                        val start = range[0].toInt()
+                        val end = minOf(range[1].toInt(), body.size - 1)
+                        ex.responseHeaders.add("Content-Range", "bytes $start-$end/${body.size}")
+                        ex.responseHeaders.add("Content-Type", APK)
+                        val length = end - start + 1
+                        ex.sendResponseHeaders(206, length.toLong())
+                        val sent = if (current == Mode.TRUNCATE) length / 2 else length
+                        ex.responseBody.write(body, start, sent)
+                    }
+                }
+            } catch (_: Exception) {
+                // 故意少送位元組時伺服器端會抱怨，客戶端看到的就是斷線。
+            } finally {
+                runCatching { ex.close() }
+            }
+        }
+
+        private fun send(ex: HttpExchange, code: Int, type: String, bytes: ByteArray) {
+            ex.responseHeaders.add("Content-Type", type)
+            ex.sendResponseHeaders(code, bytes.size.toLong())
+            ex.responseBody.write(bytes)
+        }
+
+        override fun close() {
+            server.stop(0)
+            pool.shutdownNow()
+        }
+
+        private companion object {
+            const val APK = "application/vnd.android.package-archive"
+        }
+    }
+
+    private fun md5(bytes: ByteArray): String =
+        MessageDigest.getInstance("MD5").digest(bytes).joinToString("") { "%02x".format(it) }
 
     private fun sha256OfRange(url: String, start: Long, end: Long): String {
         val conn = Http.open(url, userAgent = Http.DOWNLOAD_UA, readTimeoutMs = 30_000, range = "bytes=$start-$end", gzip = false)
