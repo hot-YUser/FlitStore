@@ -12,7 +12,7 @@
   <img src=".github/assets/explore.webp" width="23%" alt="Explore">
   <img src=".github/assets/ranking.webp" width="23%" alt="Rankings">
   <img src=".github/assets/detail.webp" width="23%" alt="App details">
-  <img src=".github/assets/mine.webp" width="23%" alt="Me">
+  <img src=".github/assets/settings.webp" width="23%" alt="Settings">
 </p>
 
 ## Relationship with MyApp
@@ -30,6 +30,7 @@ You don't need an account, and MyApp itself doesn't have to be installed. FlitSt
 - Checks your installed apps for new versions. Update everything at once, or ignore a single version or an entire app
 - With root or [Shizuku](https://shizuku.rikka.app/), apps install silently in the background with no prompt for each one. Without them, the system installer or InstallerX takes over
 - Auto-update checks and installs in the background every 3 hours. It is off by default
+- The download button on a MyApp web page can open the app in FlitStore instead
 - The interface is in English, Traditional Chinese and Simplified Chinese. App names and descriptions come from MyApp and are in Simplified Chinese
 
 ## Download

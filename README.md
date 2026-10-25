@@ -12,7 +12,7 @@
   <img src=".github/assets/explore.webp" width="23%" alt="探索">
   <img src=".github/assets/ranking.webp" width="23%" alt="排行榜">
   <img src=".github/assets/detail.webp" width="23%" alt="應用詳情">
-  <img src=".github/assets/mine.webp" width="23%" alt="我的">
+  <img src=".github/assets/settings.webp" width="23%" alt="設定">
 </p>
 
 ## 和應用寶的關係
@@ -30,6 +30,7 @@ FlitStore 不是騰訊的產品，跟騰訊也沒有合作關係。畫面上的�
 - 檢查已安裝的應用有沒有新版，可以全部一起更新，也可以忽略某個版本或某個應用
 - 有 Root 或 [Shizuku](https://shizuku.rikka.app/) 就在背景直接安裝，不用每個都按確認；沒有的話交給系統安裝器或 InstallerX
 - 自動更新：每 3 小時在背景檢查並安裝，預設關閉
+- 在瀏覽器裡按應用寶網頁的下載按鈕，可以選擇用 FlitStore 開啟
 - 介面有英文、繁體中文和簡體中文。應用名稱和介紹來自應用寶，都是簡體中文
 
 ## 下載
