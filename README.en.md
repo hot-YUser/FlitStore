@@ -21,7 +21,7 @@ I wrote FlitStore because the official MyApp is bloated and full of rogue behavi
 
 FlitStore is not a Tencent product and has no affiliation with Tencent. Everything it shows comes from MyApp's public website (sj.qq.com), and APKs are downloaded from the links MyApp provides.
 
-You don't need an account, and MyApp itself doesn't have to be installed. FlitStore has no ads, no analytics and no tracking. It only connects to MyApp's servers. To check for updates, it sends the package names of your installed apps to MyApp.
+You don't need an account, and MyApp itself doesn't have to be installed. FlitStore has no ads, no analytics and no tracking. To check for updates, it sends the package names of your installed apps to MyApp. Apart from MyApp, it only talks to GitHub to check for and download its own updates.
 
 ## Features
 
@@ -30,6 +30,7 @@ You don't need an account, and MyApp itself doesn't have to be installed. FlitSt
 - Checks your installed apps for new versions. Update everything at once, or ignore a single version or an entire app
 - With root or [Shizuku](https://shizuku.rikka.app/), apps install silently in the background with no prompt for each one. Without them, the system installer or InstallerX takes over
 - Auto-update checks and installs in the background every 3 hours. It is off by default
+- FlitStore's own updates show up in the same list and install from GitHub
 - The download button on a MyApp web page can open the app in FlitStore instead
 - The interface is in English, Traditional Chinese and Simplified Chinese. App names and descriptions come from MyApp and are in Simplified Chinese
 
