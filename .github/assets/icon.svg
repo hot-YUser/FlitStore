@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 18 72 72">
+  <defs>
+    <clipPath id="l"><rect width="44" height="108"/></clipPath>
+    <clipPath id="r"><rect x="64" width="44" height="108"/></clipPath>
+  </defs>
+  <rect x="18" y="18" width="72" height="72" rx="16" fill="#E8EAED"/>
+  <g transform="translate(54 54) scale(0.92) translate(-54 -61.5)">
+    <path d="M43,48 C43,36 65,36 65,48" fill="none" stroke="#5F6368" stroke-width="4" stroke-linecap="round"/>
+    <path d="M30,47 H78 Q82,47 81.5,51 L78,79 Q77.4,84 72.4,84 H35.6 Q30.6,84 30,79 L26.5,51 Q26,47 30,47 Z" fill="#FFF"/>
+    <g transform="translate(54 66) scale(0.6) translate(-54 -62.5)">
+      <path d="M48,60 H54 V88 A6,6 0 0 1 48,82 Z" fill="#34A853"/>
+      <path d="M54,60 H60 V82 A6,6 0 0 1 54,88 Z" fill="#FBBC04"/>
+      <path d="M54,57 C47,48 38,40 24,37 C33,45 42,55 48,66 L54,66 Z" fill="#34A853"/>
+      <path d="M54,57 C61,48 70,40 84,37 C75,45 66,55 60,66 L54,66 Z" fill="#FBBC04"/>
+      <path d="M54,57 C47,48 38,40 24,37 C33,45 42,55 48,66 L54,66 Z" fill="#4285F4" clip-path="url(#l)"/>
+      <path d="M54,57 C61,48 70,40 84,37 C75,45 66,55 60,66 L54,66 Z" fill="#EA4335" clip-path="url(#r)"/>
+    </g>
+  </g>
+</svg>
