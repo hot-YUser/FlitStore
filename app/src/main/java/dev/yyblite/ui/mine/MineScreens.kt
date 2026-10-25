@@ -97,6 +97,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
+private const val SOURCE_URL = "https://github.com/hot-YUser/FlitStore"
+
 /** 已安裝應用與各自的商店狀態，可依名稱或套件名篩選。 */
 @Composable
 fun InstalledScreen() {
@@ -580,6 +582,13 @@ fun AboutScreen() {
                 }
             }
             item { SectionHeader(stringResource(R.string.about_licenses)) }
+            item {
+                ListItem(
+                    onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, SOURCE_URL.toUri())) } },
+                    supportingContent = { Text("GNU AGPL 3.0") },
+                    trailingContent = { Glyph(R.drawable.ic_open_in_new) }
+                ) { Text(stringResource(R.string.app_name)) }
+            }
             val licenses = listOf(
                 "Jetpack Compose · AndroidX" to "Apache License 2.0",
                 "Material Symbols" to "Apache License 2.0",

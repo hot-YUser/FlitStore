@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "yyb-lite"
+rootProject.name = "FlitStore"
 include(":app", ":core")

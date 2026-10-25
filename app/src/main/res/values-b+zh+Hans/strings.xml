@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">Flit 商店</string>
     <!-- 分页与探索 -->
     <string name="tab_explore">探索</string>
     <string name="tab_updates">更新</string>
@@ -107,7 +108,7 @@
     <string name="diagnostics_empty">暂无错误日志</string>
     <string name="diagnostics_copied">已复制诊断日志</string>
     <string name="about_version">版本 %1$s</string>
-    <string name="about_tagline">轻巧、快速的应用宝客户端。</string>
+    <string name="about_tagline">非官方的腾讯应用宝 Android 客户端</string>
     <string name="about_licenses">开源许可</string>
 
     <!-- 安装方式 -->

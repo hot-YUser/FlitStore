@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">Flit</string>
+    <string name="app_name">Flit Store</string>
 
     <!-- 分頁與探索 -->
     <string name="tab_explore">Explore</string>
@@ -115,7 +115,7 @@
     <string name="diagnostics_empty">No errors recorded</string>
     <string name="diagnostics_copied">Diagnostics copied</string>
     <string name="about_version">Version %1$s</string>
-    <string name="about_tagline">A lightweight, fast client for the Tencent App Store.</string>
+    <string name="about_tagline">Unofficial Android client for Tencent MyApp</string>
     <string name="about_licenses">Open-source licenses</string>
 
     <!-- 安裝方式 -->
