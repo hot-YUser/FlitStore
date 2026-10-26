@@ -146,6 +146,14 @@
     <string name="settings_language">語言</string>
     <string name="settings_language_hint">跟隨系統，或為這個應用另選語言</string>
     <string name="settings_start_tab">開啟時顯示</string>
+    <string name="settings_icon">App 圖示</string>
+    <string name="settings_icon_hint">離開 App 後換上新圖示；有些桌面的捷徑要重新放一次。</string>
+    <string name="icon_default">預設</string>
+    <string name="icon_ink">墨色</string>
+    <string name="icon_frost">霧白</string>
+    <string name="icon_mark">純 Y</string>
+    <string name="icon_minimal">極簡</string>
+    <string name="icon_classic">經典</string>
     <string name="start_tab_last">上次使用的分頁</string>
     <string name="auto_update_title">自動更新</string>
 

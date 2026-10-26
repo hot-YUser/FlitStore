@@ -146,6 +146,14 @@
     <string name="settings_language">语言</string>
     <string name="settings_language_hint">跟随系统，或为此应用单独选择语言</string>
     <string name="settings_start_tab">打开时显示</string>
+    <string name="settings_icon">应用图标</string>
+    <string name="settings_icon_hint">离开应用后换上新图标；有些桌面的快捷方式需要重新放置。</string>
+    <string name="icon_default">默认</string>
+    <string name="icon_ink">墨色</string>
+    <string name="icon_frost">雾白</string>
+    <string name="icon_mark">纯 Y</string>
+    <string name="icon_minimal">极简</string>
+    <string name="icon_classic">经典</string>
     <string name="start_tab_last">上次使用的分页</string>
     <string name="auto_update_title">自动更新</string>
 

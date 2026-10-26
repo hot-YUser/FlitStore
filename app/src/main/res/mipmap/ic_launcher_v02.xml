@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 7.x 沒有自適應圖示：同一隻雨燕放在圓角方形漸層底上。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M30,6h48a24,24 0 0 1 24,24v48a24,24 0 0 1 -24,24h-48a24,24 0 0 1 -24,-24v-48a24,24 0 0 1 24,-24z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="102"
+                android:endY="102"
+                android:startX="6"
+                android:startY="6"
+                android:type="linear">
+                <item
+                    android:color="#FF3D8BFF"
+                    android:offset="0" />
+                <item
+                    android:color="#FF1A56C9"
+                    android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,58 C51,48 47,40 41,40 C35,40 29,45 24,52 C31,49 37,48 41,48 C46,48 51,56 54,68 C57,56 62,48 67,48 C71,48 77,49 84,52 C79,45 73,40 67,40 C61,40 57,48 54,58 Z" />
+</vector>

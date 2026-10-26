@@ -31,14 +31,10 @@
         android:theme="@style/Theme.YybLite">
 
         <activity
-            android:name=".MainActivity"
+            android:name=".AppActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
             <!-- 應用寶網頁的「安裝」按鈕：裝了應用寶時系統會讓使用者選擇，沒裝就直接由這裡開啟。 -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -76,6 +72,98 @@
                 <data android:path="/o/simple.jsp" />
             </intent-filter>
         </activity>
+
+        <!--
+          桌面入口：每種圖示一個別名，同一時間只啟用一個（在設定裡切換）。
+          預設沿用 .MainActivity 這個元件名，舊版放在桌面上的捷徑升級後仍然有效。
+        -->
+        <activity-alias
+            android:name=".MainActivity"
+            android:exported="true"
+            android:targetActivity=".AppActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconInk"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_ink"
+            android:targetActivity=".AppActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconFrost"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_frost"
+            android:targetActivity=".AppActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconMark"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_mark"
+            android:targetActivity=".AppActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconMinimal"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_minimal"
+            android:targetActivity=".AppActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconV01"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_v01"
+            android:targetActivity=".AppActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconV02"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_v02"
+            android:targetActivity=".AppActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".IconV021"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_v021"
+            android:targetActivity=".AppActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"

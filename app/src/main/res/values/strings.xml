@@ -153,6 +153,17 @@
     <string name="settings_language">Language</string>
     <string name="settings_language_hint">Follow the system or choose a language for this app</string>
     <string name="settings_start_tab">Open on</string>
+    <string name="settings_icon">App icon</string>
+    <string name="settings_icon_hint">The new icon appears after you leave the app. Some launchers need the shortcut added again.</string>
+    <string name="icon_default">Default</string>
+    <string name="icon_ink">Ink</string>
+    <string name="icon_frost">Frost</string>
+    <string name="icon_mark">Y only</string>
+    <string name="icon_minimal">Minimal</string>
+    <string name="icon_classic">Classic</string>
+    <string name="icon_v01" translatable="false">v0.1</string>
+    <string name="icon_v02" translatable="false">v0.2</string>
+    <string name="icon_v021" translatable="false">v0.2.1</string>
     <string name="start_tab_last">Last used tab</string>
     <string name="auto_update_title">Automatic updates</string>
 

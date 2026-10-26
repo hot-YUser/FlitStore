@@ -7,7 +7,7 @@ import android.content.Intent
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import dev.yyblite.MainActivity
+import dev.yyblite.AppActivity
 import dev.yyblite.R
 import dev.yyblite.core.store.StoreApp
 import dev.yyblite.download.DownloadPhase
@@ -61,7 +61,7 @@ object Notifications {
             .setOnlyAlertOnce(true)
             .setSilent(true)
             .setProgress(100, if (total > 0) ((done * 100) / total).toInt() else 0, total <= 0)
-            .setContentIntent(openApp(ctx, MainActivity.TAB_UPDATES))
+            .setContentIntent(openApp(ctx, AppActivity.TAB_UPDATES))
             .build()
     }
 
@@ -79,7 +79,7 @@ object Notifications {
                 .setContentTitle(ctx.resources.getQuantityString(R.plurals.notification_updates, apps.size, apps.size))
                 .setContentText(text)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-                .setContentIntent(openApp(ctx, MainActivity.TAB_UPDATES))
+                .setContentIntent(openApp(ctx, AppActivity.TAB_UPDATES))
                 .setAutoCancel(true)
                 .build()
         )
@@ -114,7 +114,7 @@ object Notifications {
                 .setContentTitle(ctx.getString(R.string.notification_failed, name))
                 .setContentText(message)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(message))
-                .setContentIntent(openApp(ctx, MainActivity.TAB_UPDATES))
+                .setContentIntent(openApp(ctx, AppActivity.TAB_UPDATES))
                 .setAutoCancel(true)
                 .build()
         )
@@ -127,7 +127,7 @@ object Notifications {
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(ctx.getString(R.string.app_name))
                 .setContentText(ctx.getString(R.string.notification_self_updated, version))
-                .setContentIntent(openApp(ctx, MainActivity.TAB_UPDATES))
+                .setContentIntent(openApp(ctx, AppActivity.TAB_UPDATES))
                 .setAutoCancel(true)
                 .build()
         )
@@ -154,8 +154,8 @@ object Notifications {
 
     private fun openApp(ctx: Context, tab: String): PendingIntent = PendingIntent.getActivity(
         ctx, tab.hashCode(),
-        Intent(ctx, MainActivity::class.java)
-            .putExtra(MainActivity.EXTRA_TAB, tab)
+        Intent(ctx, AppActivity::class.java)
+            .putExtra(AppActivity.EXTRA_TAB, tab)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
     )

@@ -13,6 +13,7 @@ import android.view.ViewTreeObserver
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -62,6 +64,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.getSystemService
@@ -80,6 +83,7 @@ import dev.yyblite.download.DownloadState
 import dev.yyblite.graph
 import dev.yyblite.install.InstallerStatus
 import dev.yyblite.install.ShizukuInstaller
+import dev.yyblite.platform.LauncherIcon
 import dev.yyblite.platform.Problems
 import dev.yyblite.ui.Format
 import dev.yyblite.ui.HomeTab
@@ -312,7 +316,7 @@ fun IgnoredScreen() {
     }
 }
 
-/** 設定：安裝方式、極速安裝、背景自動更新、懸浮視窗授權、語言。 */
+/** 設定：安裝方式、極速安裝、背景自動更新、懸浮視窗授權、App 圖示、語言。 */
 @Composable
 fun SettingsScreen() {
     val context = LocalContext.current
@@ -327,6 +331,8 @@ fun SettingsScreen() {
     var auto by remember { mutableStateOf(settings.autoUpdate) }
     var startTab by remember { mutableStateOf(settings.startTab) }
     var pickStart by remember { mutableStateOf(false) }
+    var icon by remember { mutableStateOf(LauncherIcon.current(context)) }
+    var pickIcon by remember { mutableStateOf(false) }
     val overlay = remember(refresh) { Settings.canDrawOverlays(context) }
 
     SubScreen(stringResource(R.string.mine_settings)) { padding ->
@@ -397,6 +403,13 @@ fun SettingsScreen() {
                     leadingContent = { Glyph(R.drawable.ic_tab) }
                 ) { Text(stringResource(R.string.settings_start_tab)) }
             }
+            item {
+                ListItem(
+                    onClick = { pickIcon = true },
+                    supportingContent = { Text(stringResource(icon.label)) },
+                    leadingContent = { LauncherIconImage(icon, 24.dp) }
+                ) { Text(stringResource(R.string.settings_icon)) }
+            }
             if (Build.VERSION.SDK_INT >= 33) {
                 item {
                     ListItem(
@@ -441,6 +454,65 @@ fun SettingsScreen() {
             },
             confirmButton = { TextButton(onClick = { pickStart = false }) { Text(stringResource(R.string.action_cancel)) } }
         )
+    }
+
+    if (pickIcon) {
+        @Composable
+        fun IconRow(row: List<LauncherIcon>) {
+            Row(Modifier.fillMaxWidth()) {
+                row.forEach { option ->
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable {
+                                LauncherIcon.choose(context, option)
+                                icon = option
+                                pickIcon = false
+                            }
+                            .padding(vertical = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val ring = if (option == icon) MaterialTheme.colorScheme.primary else Color.Transparent
+                        LauncherIconImage(
+                            option, 56.dp,
+                            Modifier.border(2.dp, ring, RoundedCornerShape(34)).padding(5.dp)
+                        )
+                        Text(stringResource(option.label), style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { pickIcon = false },
+            title = { Text(stringResource(R.string.settings_icon)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    val (classic, current) = LauncherIcon.entries.partition { it.classic }
+                    current.chunked(3).forEach { row -> IconRow(row) }
+                    Text(stringResource(R.string.icon_classic), style = MaterialTheme.typography.titleSmall)
+                    classic.chunked(3).forEach { row -> IconRow(row) }
+                    Text(
+                        stringResource(R.string.settings_icon_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = { TextButton(onClick = { pickIcon = false }) { Text(stringResource(R.string.action_cancel)) } }
+        )
+    }
+}
+
+/** 自適應圖示不能直接給 painterResource，改用同一份底圖與前景自行組合（與桌面相同的 72/108 可見比例）。 */
+@Composable
+private fun LauncherIconImage(icon: LauncherIcon, size: Dp, modifier: Modifier = Modifier) {
+    Box(modifier.size(size).clip(RoundedCornerShape(30)), contentAlignment = Alignment.Center) {
+        Image(painterResource(icon.background), contentDescription = null, modifier = Modifier.requiredSize(size * 1.5f))
+        Image(painterResource(icon.foreground), contentDescription = null, modifier = Modifier.requiredSize(size * 1.5f))
     }
 }
 
@@ -553,24 +625,7 @@ fun AboutScreen() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // 自適應圖示不能直接給 painterResource，改用同一份底圖與前景自行組合（與桌面相同的 72/108 可見比例）。
-                    Box(
-                        Modifier
-                            .size(88.dp)
-                            .clip(RoundedCornerShape(26.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Image(
-                            painterResource(R.drawable.ic_launcher_background),
-                            contentDescription = null,
-                            modifier = Modifier.requiredSize(132.dp)
-                        )
-                        Image(
-                            painterResource(R.drawable.ic_launcher_foreground),
-                            contentDescription = null,
-                            modifier = Modifier.requiredSize(132.dp)
-                        )
-                    }
+                    LauncherIconImage(remember { LauncherIcon.current(context) }, 88.dp)
                     Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
                     Text(
                         stringResource(R.string.about_version, appVersion(context)),

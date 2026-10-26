@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  「極簡」的主題圖示：同樣的三條加提把，斷開的縫隙保留。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M42.01,40.17 C42.01,23.27 65.99,23.27 65.99,40.17"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5.45"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M32.19,39.62 L75.81,39.62 Q79.08,39.62 78.75,42.89 L77.98,50.67 Q77.89,51.54 77.02,51.54 L30.98,51.54 Q30.11,51.54 30.02,50.67 L29.25,42.89 Q28.92,39.62 32.19,39.62 Z"
+        android:fillColor="#FFFFFFFF" />
+    <path
+        android:pathData="M31.38,55.46 L76.62,55.46 Q77.5,55.46 77.41,56.34 L76.38,66.52 Q76.3,67.39 75.43,67.39 L32.57,67.39 Q31.7,67.39 31.62,66.52 L30.59,56.34 Q30.5,55.46 31.38,55.46 Z"
+        android:fillColor="#FFFFFFFF" />
+    <path
+        android:pathData="M32.97,71.32 L75.03,71.32 Q75.91,71.32 75.82,72.19 L75.59,74.51 Q74.72,83.23 65.99,83.23 L42.01,83.23 Q33.28,83.23 32.41,74.51 L32.18,72.19 Q32.09,71.32 32.97,71.32 Z"
+        android:fillColor="#FFFFFFFF" />
+</vector>

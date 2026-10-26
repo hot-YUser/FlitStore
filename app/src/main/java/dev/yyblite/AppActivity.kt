@@ -47,6 +47,7 @@ import dev.yyblite.data.InstallerKind
 import dev.yyblite.data.Settings as AppSettings
 import dev.yyblite.download.DownloadState
 import dev.yyblite.platform.AppVisibility
+import dev.yyblite.platform.LauncherIcon
 import dev.yyblite.ui.HomeScreen
 import dev.yyblite.ui.HomeTab
 import dev.yyblite.ui.common.AppActions
@@ -82,7 +83,7 @@ class MainModel : ViewModel() {
     var initialized = false
 }
 
-class MainActivity : ComponentActivity() {
+class AppActivity : ComponentActivity() {
     private lateinit var model: MainModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -110,6 +111,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         AppVisibility.onStop()
+        if (!isChangingConfigurations) LauncherIcon.applyPending(this)
         super.onStop()
     }
 

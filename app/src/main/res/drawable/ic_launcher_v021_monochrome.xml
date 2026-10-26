@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 經典圖示 v0.2.1 的主題圖示：純 Y 剪影。三塊分開畫，重疊處才不會被挖空。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="62.5"
+        android:scaleX="0.85"
+        android:scaleY="0.85"
+        android:translateY="-8.5">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M48,60 H60 V82 A6,6 0 0 1 48,82 Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M54,57 C47,48 38,40 24,37 C33,45 42,55 48,66 L54,66 Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M54,57 C61,48 70,40 84,37 C75,45 66,55 60,66 L54,66 Z" />
+    </group>
+</vector>

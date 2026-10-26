@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 經典圖示 v0.2.1：白色購物袋加四色 Y。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="61.5"
+        android:scaleX="0.92"
+        android:scaleY="0.92"
+        android:translateY="-7.5">
+        <path
+            android:pathData="M43,48 C43,36 65,36 65,48"
+            android:strokeWidth="4"
+            android:strokeColor="#FF5F6368"
+            android:strokeLineCap="round" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M30,47 H78 Q82,47 81.5,51 L78,79 Q77.4,84 72.4,84 H35.6 Q30.6,84 30,79 L26.5,51 Q26,47 30,47 Z" />
+        <group
+            android:pivotX="54"
+            android:pivotY="62.5"
+            android:scaleX="0.6"
+            android:scaleY="0.6"
+            android:translateY="3.5">
+            <path
+                android:fillColor="#FF34A853"
+                android:pathData="M48,60 H54 V88 A6,6 0 0 1 48,82 Z" />
+            <path
+                android:fillColor="#FFFBBC04"
+                android:pathData="M54,60 H60 V82 A6,6 0 0 1 54,88 Z" />
+            <path
+                android:fillColor="#FF34A853"
+                android:pathData="M54,57 C47,48 38,40 24,37 C33,45 42,55 48,66 L54,66 Z" />
+            <path
+                android:fillColor="#FFFBBC04"
+                android:pathData="M54,57 C61,48 70,40 84,37 C75,45 66,55 60,66 L54,66 Z" />
+            <group>
+                <clip-path android:pathData="M0,0 H44 V108 H0 Z" />
+                <path
+                    android:fillColor="#FF4285F4"
+                    android:pathData="M54,57 C47,48 38,40 24,37 C33,45 42,55 48,66 L54,66 Z" />
+            </group>
+            <group>
+                <clip-path android:pathData="M64,0 H108 V108 H64 Z" />
+                <path
+                    android:fillColor="#FFEA4335"
+                    android:pathData="M54,57 C61,48 70,40 84,37 C75,45 66,55 60,66 L54,66 Z" />
+            </group>
+        </group>
+    </group>
+</vector>
