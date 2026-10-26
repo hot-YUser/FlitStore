@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  備用圖示「霧白」：霧面白色的袋子，配墨色底（ic_launcher_frost_background）才看得見。
+  備用圖示「霧白」：比預設更淡的四色磨砂袋，中央柔光；搭配 ic_launcher_frost_background 的深色底。
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
@@ -29,18 +29,34 @@
         android:pathData="M68.72,42.34 L77.4,45.85 Q78.64,46.37 78.64,47.71 L78.13,74.37 Q78.02,76.64 75.96,77.68 L70.38,80.57 Z">
         <aapt:attr name="android:fillColor">
             <gradient android:type="linear" android:startX="68.72" android:startY="43.58" android:endX="78.02" android:endY="80.77">
-                <item android:offset="0" android:color="#FFDCE6F7" />
-                <item android:offset="1" android:color="#FFE9DDF0" />
+                <item android:offset="0" android:color="#FFD3D8F0" />
+                <item android:offset="1" android:color="#FFE3D2EA" />
             </gradient>
         </aapt:attr>
     </path>
     <path
         android:pathData="M31.11,42.34 L67.07,42.34 Q68.72,42.34 68.83,43.99 L70.58,76.02 Q70.89,80.77 66.14,80.77 L36.69,80.77 Q31.94,80.77 32.25,76.02 L29.36,43.99 Q29.36,42.34 31.11,42.34 Z">
         <aapt:attr name="android:fillColor">
-            <gradient android:type="linear" android:startX="29.46" android:startY="43.58" android:endX="70.79" android:endY="80.77">
-                <item android:offset="0" android:color="#FFF3F8FF" />
-                <item android:offset="0.5" android:color="#FFF7F5FF" />
-                <item android:offset="1" android:color="#FFFFF3EC" />
+            <gradient android:type="sweep" android:centerX="49.97" android:centerY="61.56">
+                <item android:offset="0" android:color="#FFFFE3C9" />
+                <item android:offset="0.125" android:color="#FFFFF3C2" />
+                <item android:offset="0.25" android:color="#FFE7F6D4" />
+                <item android:offset="0.375" android:color="#FFCCF5EA" />
+                <item android:offset="0.5" android:color="#FFC7ECFB" />
+                <item android:offset="0.625" android:color="#FFC2E1FF" />
+                <item android:offset="0.75" android:color="#FFDFD8FF" />
+                <item android:offset="0.875" android:color="#FFFFC2D6" />
+                <item android:offset="1" android:color="#FFFFE3C9" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M31.11,42.34 L67.07,42.34 Q68.72,42.34 68.83,43.99 L70.58,76.02 Q70.89,80.77 66.14,80.77 L36.69,80.77 Q31.94,80.77 32.25,76.02 L29.36,43.99 Q29.36,42.34 31.11,42.34 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial" android:centerX="49.97" android:centerY="61.56" android:gradientRadius="19.63">
+                <item android:offset="0" android:color="#CCFFFFFF" />
+                <item android:offset="0.6" android:color="#66FFFFFF" />
+                <item android:offset="1" android:color="#00FFFFFF" />
             </gradient>
         </aapt:attr>
     </path>
