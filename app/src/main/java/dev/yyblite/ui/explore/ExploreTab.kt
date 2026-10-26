@@ -71,7 +71,6 @@ import dev.yyblite.ui.common.SectionHeader
 import dev.yyblite.ui.common.rememberImage
 import dev.yyblite.ui.nav.LocalNavigator
 import dev.yyblite.ui.nav.Route
-import dev.yyblite.ui.nav.sharedIcon
 import kotlinx.coroutines.launch
 
 /** 探索：頂部搜尋入口 + 「推薦｜應用｜遊戲」，左右滑動或點按切換。 */
@@ -92,7 +91,6 @@ fun ExploreTab(bottom: PaddingValues) {
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .fillMaxWidth()
                 .height(56.dp)
-                .sharedIcon("search-bar")
         ) {
             Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Glyph(R.drawable.ic_search)
@@ -165,10 +163,10 @@ private fun FeedList(feed: Feed, bottom: PaddingValues) {
             }
             when {
                 section.ranked -> itemsIndexed(section.apps, key = { _, app -> "r:${section.key}:${app.pkg}" }) { index, app ->
-                    AppRow(app, origin = section.key, rank = index + 1, onClick = { open(navigator, app, section.key) })
+                    AppRow(app, rank = index + 1, onClick = { open(navigator, app) })
                 }
                 section.key == HOT_APPS -> items(section.apps, key = { "a:${section.key}:${it.pkg}" }) { app ->
-                    AppRow(app, origin = section.key, onClick = { open(navigator, app, section.key) })
+                    AppRow(app, onClick = { open(navigator, app) })
                 }
                 else -> item(key = "row:${section.key}") { AppCardRow(section) }
             }
@@ -205,7 +203,7 @@ private fun BannerCarousel(banners: List<Banner>) {
                 .fillMaxSize()
                 .maskClip(MaterialTheme.shapes.extraLarge)
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                .clickable { open(navigator, banner.app, "banner") }
+                .clickable { open(navigator, banner.app) }
         ) {
             if (image != null) {
                 Image(image, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -219,7 +217,7 @@ private fun BannerCarousel(banners: List<Banner>) {
                 Modifier.align(Alignment.BottomStart).padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AppIcon(banner.app.iconUrl, banner.app.pkg, 40.dp, Modifier.sharedIcon("icon:${banner.app.pkg}:banner"))
+                AppIcon(banner.app.iconUrl, banner.app.pkg, 40.dp)
                 Spacer(Modifier.width(10.dp))
                 Column {
                     Text(banner.app.name, color = Color.White, style = MaterialTheme.typography.titleSmall, maxLines = 1)
@@ -249,10 +247,10 @@ private fun AppCardRow(section: Section) {
             Column(
                 Modifier
                     .width(88.dp)
-                    .clickable { open(navigator, app, section.key) }
+                    .clickable { open(navigator, app) }
                     .padding(vertical = 6.dp)
             ) {
-                AppIcon(app.iconUrl, app.pkg, 88.dp, Modifier.sharedIcon("icon:${app.pkg}:${section.key}"))
+                AppIcon(app.iconUrl, app.pkg, 88.dp)
                 Spacer(Modifier.height(8.dp))
                 Text(app.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
@@ -297,7 +295,7 @@ private fun LibraryPage(game: Boolean, bottom: PaddingValues) {
             Load.Loading -> item { LoadingBox() }
             is Load.Failed -> item { ErrorBox(state.error, { repository.refreshLibrary(game, category) }) }
             is Load.Ready -> items(state.data.apps, key = { "$origin:${it.pkg}" }) { app ->
-                AppRow(app, origin = origin, onClick = { open(navigator, app, origin) })
+                AppRow(app, onClick = { open(navigator, app) })
             }
         }
     }
@@ -305,5 +303,5 @@ private fun LibraryPage(game: Boolean, bottom: PaddingValues) {
 
 private const val HOT_APPS = "YYB_HOME_HOT_APP"
 
-private fun open(navigator: dev.yyblite.ui.nav.Navigator, app: StoreApp, origin: String) =
-    navigator.push(Route.Detail(app.pkg, app, origin))
+private fun open(navigator: dev.yyblite.ui.nav.Navigator, app: StoreApp) =
+    navigator.push(Route.Detail(app.pkg, app))

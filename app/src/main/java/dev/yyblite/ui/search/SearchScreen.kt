@@ -50,7 +50,6 @@ import dev.yyblite.ui.common.LoadingBox
 import dev.yyblite.ui.common.MessageBox
 import dev.yyblite.ui.nav.LocalNavigator
 import dev.yyblite.ui.nav.Route
-import dev.yyblite.ui.nav.sharedIcon
 
 /** 搜尋：空白時顯示搜尋紀錄，送出後顯示結果；失敗與「沒有結果」分開呈現。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,7 +89,6 @@ fun SearchScreen() {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
-                .sharedIcon("search-bar")
         ) {
             SearchBarDefaults.InputField(
                 state = text,
@@ -170,7 +168,7 @@ private fun Results(query: String) {
         } else {
             LazyColumn(Modifier.fillMaxSize().navigationBarsPadding()) {
                 items(state.data, key = { it.pkg }) { app ->
-                    AppRow(app, origin = "search", onClick = { navigator.push(Route.Detail(app.pkg, app, "search")) })
+                    AppRow(app, onClick = { navigator.push(Route.Detail(app.pkg, app)) })
                 }
             }
         }

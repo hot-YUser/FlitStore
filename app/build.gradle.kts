@@ -76,6 +76,9 @@ dependencies {
     // 完整的 Material 3 Expressive 元件只在 1.5 系列；beta 代表 API 已凍結。
     implementation("androidx.compose.material3:material3:1.5.0-beta02")
     implementation("androidx.activity:activity-compose:1.13.0")
+    // 官方導覽：返回堆疊與預測式返回動畫都交給 Navigation 3 的預設行為。
+    implementation("androidx.navigation3:navigation3-runtime:1.2.0")
+    implementation("androidx.navigation3:navigation3-ui:1.2.0")
     implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.work:work-runtime:2.12.0")
     // Compose 已帶入 coroutines，這裡只為編譯期可見。

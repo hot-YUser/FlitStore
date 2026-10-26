@@ -64,7 +64,6 @@ import dev.yyblite.download.DownloadPhase
 import dev.yyblite.graph
 import dev.yyblite.ui.Format
 import dev.yyblite.ui.image.ThumbCache
-import dev.yyblite.ui.nav.sharedIcon
 
 private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -134,13 +133,11 @@ fun rememberStatus(app: StoreApp): AppStatus {
 
 /**
  * 通用的應用列：圖示、名稱、副標、右側動作按鈕；下載中在副標下方顯示波浪進度條。
- * [origin] 用來組共用元素的 key，同一畫面出現同一個應用時不會互相干擾。
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AppRow(
     app: StoreApp,
-    origin: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     supporting: String? = null,
@@ -171,7 +168,7 @@ fun AppRow(
             )
         }
         Box {
-            AppIcon(app.iconUrl, app.pkg, 52.dp, Modifier.sharedIcon("icon:${app.pkg}:$origin"))
+            AppIcon(app.iconUrl, app.pkg, 52.dp)
             if (selected == true) {
                 Box(
                     Modifier

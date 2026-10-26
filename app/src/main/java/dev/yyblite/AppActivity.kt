@@ -131,13 +131,13 @@ class AppActivity : ComponentActivity() {
         val link = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.dataString ?: return
         val pkg = StoreLink.packageName(link)
         if (pkg != null) {
-            model.navigator.push(Route.Detail(pkg, null, "link"))
+            model.navigator.push(Route.Detail(pkg))
             return
         }
         val appId = StoreLink.appId(link) ?: return
         lifecycleScope.launch {
             val resolved = withContext(Dispatchers.IO) { runCatching { StoreClient.packageForAppId(appId) }.getOrNull() }
-            if (resolved != null) model.navigator.push(Route.Detail(resolved, null, "link"))
+            if (resolved != null) model.navigator.push(Route.Detail(resolved))
         }
     }
 

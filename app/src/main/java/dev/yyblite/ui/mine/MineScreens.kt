@@ -134,7 +134,7 @@ fun InstalledScreen() {
                     supporting = statusLine(entry),
                     onClick = {
                         if (entry.status == EntryStatus.NOT_IN_STORE) actions.message(R.string.detail_not_in_store)
-                        else navigator.push(Route.Detail(entry.installed.pkg, entry.store, "installed"))
+                        else navigator.push(Route.Detail(entry.installed.pkg, entry.store))
                     }
                 )
             }

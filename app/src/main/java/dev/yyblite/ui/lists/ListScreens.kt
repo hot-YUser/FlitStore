@@ -57,7 +57,6 @@ fun AppsScreen(route: Route.Apps) {
         title = route.title,
         flow = flow,
         ranked = route.source is ListSource.Rank,
-        origin = "list:${route.source}",
         onRetry = { repository.refreshList(route.source) }
     )
 }
@@ -70,7 +69,6 @@ fun DeveloperScreen(route: Route.Developer) {
         title = route.name,
         flow = flow,
         ranked = false,
-        origin = "developer:${route.name}",
         onRetry = { repository.retryDeveloperApps(route.name, route.seedPkg) }
     )
 }
@@ -80,7 +78,6 @@ fun AppListScreen(
     title: String,
     flow: StateFlow<Load<List<StoreApp>>>,
     ranked: Boolean,
-    origin: String,
     onRetry: () -> Unit
 ) {
     val navigator = LocalNavigator.current
@@ -96,9 +93,8 @@ fun AppListScreen(
                     itemsIndexed(state.data, key = { _, app -> app.pkg }) { index, app ->
                         AppRow(
                             app = app,
-                            origin = origin,
                             rank = if (ranked) index + 1 else null,
-                            onClick = { navigator.push(Route.Detail(app.pkg, app, origin)) }
+                            onClick = { navigator.push(Route.Detail(app.pkg, app)) }
                         )
                     }
                 }

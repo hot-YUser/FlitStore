@@ -208,7 +208,7 @@ fun UpdatesTab(bottom: PaddingValues) {
                             selected = if (selecting) entry.installed.pkg in selection else null,
                             onClick = {
                                 if (selecting) picked = selection.toggle(entry.installed.pkg)
-                                else navigator.push(Route.Detail(entry.installed.pkg, entry.store, "updates"))
+                                else navigator.push(Route.Detail(entry.installed.pkg, entry.store))
                             },
                             onLongClick = { picked = selection.toggle(entry.installed.pkg) }
                         )
@@ -217,7 +217,7 @@ fun UpdatesTab(bottom: PaddingValues) {
                 if (state.blocked.isNotEmpty()) {
                     item(key = "blocked-h") { SectionHeader(stringResource(R.string.updates_blocked)) }
                     items(state.blocked, key = { "b:" + it.installed.pkg }) { entry ->
-                        UpdateRow(entry, null, { navigator.push(Route.Detail(entry.installed.pkg, entry.store, "blocked")) }, null)
+                        UpdateRow(entry, null, { navigator.push(Route.Detail(entry.installed.pkg, entry.store)) }, null)
                     }
                 }
                 if (state.failed.isNotEmpty()) {
@@ -244,7 +244,7 @@ fun UpdatesTab(bottom: PaddingValues) {
                                 label = entry.installed.label,
                                 supporting = Problems.message(context, entry.error),
                                 supportingColor = MaterialTheme.colorScheme.error,
-                                onClick = { navigator.push(Route.Detail(entry.installed.pkg, null, "failed")) }
+                                onClick = { navigator.push(Route.Detail(entry.installed.pkg)) }
                             ) {
                                 TextButton(onClick = { repository.recheck(entry.installed.pkg) }) {
                                     Text(stringResource(R.string.action_retry))
@@ -270,7 +270,6 @@ private fun UpdateRow(entry: UpdateEntry, selected: Boolean?, onClick: () -> Uni
     val size = store.sizeBytes.takeIf { it > 0 }?.let { " · " + Format.size(context, it) }.orEmpty()
     AppRow(
         app = store,
-        origin = "updates",
         onClick = onClick,
         supporting = versions + size,
         selected = selected,

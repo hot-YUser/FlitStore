@@ -93,7 +93,6 @@ import dev.yyblite.ui.common.actionStateOf
 import dev.yyblite.ui.common.rememberImage
 import dev.yyblite.ui.nav.LocalNavigator
 import dev.yyblite.ui.nav.Route
-import dev.yyblite.ui.nav.sharedIcon
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -135,7 +134,7 @@ fun DetailScreen(route: Route.Detail) {
             app == null -> Box(Modifier.padding(padding)) {
                 ErrorBox(state.appError, { graph.store.detail(route.pkg, route.seed, force = true) })
             }
-            else -> DetailContent(app, state.detail, status, download, route.origin, padding)
+            else -> DetailContent(app, state.detail, status, download, padding)
         }
     }
 }
@@ -198,12 +197,11 @@ private fun DetailContent(
     detail: StoreDetail?,
     status: AppStatus,
     download: DownloadState?,
-    origin: String,
     padding: PaddingValues
 ) {
     val navigator = LocalNavigator.current
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
-        item(key = "header") { Header(app, origin) }
+        item(key = "header") { Header(app) }
         item(key = "stats") { Stats(app, detail) }
         item(key = "action") { PrimaryAction(app, status, download) }
         item(key = "status") { StatusLine(app, status, download) }
@@ -228,10 +226,10 @@ private fun DetailContent(
 }
 
 @Composable
-private fun Header(app: StoreApp, origin: String) {
+private fun Header(app: StoreApp) {
     val navigator = LocalNavigator.current
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        AppIcon(app.iconUrl, app.pkg, 96.dp, Modifier.sharedIcon("icon:${app.pkg}:$origin"))
+        AppIcon(app.iconUrl, app.pkg, 96.dp)
         Spacer(Modifier.width(20.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(app.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, maxLines = 2)
@@ -530,7 +528,6 @@ fun ReviewItem(review: Review) {
 private fun SameDeveloper(app: StoreApp, apps: List<StoreApp>) {
     val navigator = LocalNavigator.current
     val developer = app.developer ?: app.operator ?: ""
-    val origin = "dev:${app.pkg}"
     SectionHeader(
         stringResource(R.string.detail_same_developer),
         action = stringResource(R.string.action_see_all),
@@ -541,10 +538,10 @@ private fun SameDeveloper(app: StoreApp, apps: List<StoreApp>) {
             Column(
                 Modifier
                     .width(80.dp)
-                    .clickable { navigator.push(Route.Detail(other.pkg, other, origin)) }
+                    .clickable { navigator.push(Route.Detail(other.pkg, other)) }
                     .padding(vertical = 6.dp)
             ) {
-                AppIcon(other.iconUrl, other.pkg, 80.dp, Modifier.sharedIcon("icon:${other.pkg}:$origin"))
+                AppIcon(other.iconUrl, other.pkg, 80.dp)
                 Spacer(Modifier.height(6.dp))
                 Text(other.name, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
