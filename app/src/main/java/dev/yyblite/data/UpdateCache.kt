@@ -62,6 +62,17 @@ class UpdateCache(private val ctx: Context) {
 
     fun markRegression(pkg: String, storeVersion: String) = meta.put("rg:$pkg", storeVersion)
 
+    /** 探測失敗的短期記錄，避免每次刷新都重試同一個 APK；過期後再試。 */
+    fun probeFailed(pkg: String, md5: String): Boolean {
+        val raw = meta["pf:$pkg"] ?: return false
+        if (raw.substringBefore('|') != md5) return false
+        val at = raw.substringAfter('|').toLongOrNull() ?: return false
+        return System.currentTimeMillis() - at < PROBE_FAIL_TTL_MS
+    }
+
+    fun markProbeFailed(pkg: String, md5: String) =
+        meta.put("pf:$pkg", "$md5|${System.currentTimeMillis()}")
+
     /** 已探測的商店建置號，綁定 APK 的 MD5：檔案換了就作廢。 */
     fun buildProbe(pkg: String, md5: String): Long? {
         val value = meta["bp:$pkg"] ?: return null
@@ -82,5 +93,6 @@ class UpdateCache(private val ctx: Context) {
 
     private companion object {
         const val NEGATIVE_TTL_MS = 3L * 24 * 60 * 60 * 1000
+        const val PROBE_FAIL_TTL_MS = 6L * 60 * 60 * 1000
     }
 }

@@ -318,6 +318,7 @@ class UpdateRepository(
             val url = Device.urlFor(store)
             val md5 = Abi.md5For(store, url)
             if (md5.isBlank() || cache.buildProbe(store.pkg, md5) != null) return@mapNotNull null
+            if (cache.probeFailed(store.pkg, md5)) return@mapNotNull null
             Triple(store.pkg, url, md5)
         }.distinctBy { it.first }
         if (pending.isEmpty()) return
@@ -331,8 +332,10 @@ class UpdateRepository(
                         .getOrNull()
                     if (code != null && code > 0) {
                         cache.putBuildProbe(pkg, md5, code)
-                        reevaluateNow(pkg)
+                    } else {
+                        cache.markProbeFailed(pkg, md5)
                     }
+                    reevaluateNow(pkg)
                 } finally {
                     latch.countDown()
                 }
@@ -349,7 +352,8 @@ class UpdateRepository(
 
     private fun verdictFor(installed: InstalledApp, store: StoreApp, allowIpc: Boolean): Verdict {
         val url = Device.urlFor(store)
-        val probed = cache.buildProbe(store.pkg, Abi.md5For(store, url))
+        val md5 = Abi.md5For(store, url)
+        val probed = cache.buildProbe(store.pkg, md5)
         return UpdatePolicy.evaluate(
             store = store,
             installed = installed,
@@ -357,7 +361,7 @@ class UpdateRepository(
             regression = cache.isRegression(store.pkg, store.versionName),
             ignored = ignores.isIgnored(store.pkg, store.versionName, store.apkMd5),
             probedBuild = probed,
-            requireVersionCode = probed == null
+            requireVersionCode = probed == null && !cache.probeFailed(store.pkg, md5)
         )
     }
 
