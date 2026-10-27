@@ -43,6 +43,29 @@ class UpdatePolicyTest {
         assertFalse(UpdatePolicy.isNewer(store("8.0.70", null), "8.0.79", 0))
     }
 
+    @Test
+    fun probedCodeBeatsNewerVersionName() {
+        val installed = installed("7.27.96.8", 528)
+        // 商店頁 7.28.80，但 APK 實際建置號 525：不可提供更新。
+        assertFalse(UpdatePolicy.isNewer(store("7.28.80"), "7.27.96.8", 528, 525))
+        assertEquals(
+            Verdict.UpToDate,
+            UpdatePolicy.evaluate(store("7.28.80"), installed, true, false, false, 525)
+        )
+        // 真正較新的建置才提供。
+        assertTrue(UpdatePolicy.isNewer(store("7.28.80"), "7.27.96.8", 528, 529))
+        assertTrue(
+            UpdatePolicy.evaluate(store("7.28.80"), installed, true, false, false, 529).offered
+        )
+        // 尚未探測時先不提供，避免只憑 versionName 就下載。
+        assertFalse(
+            UpdatePolicy.evaluate(
+                store("7.28.80"), installed, true, false, false,
+                probedBuild = null, requireVersionCode = true
+            ).offered
+        )
+    }
+
     /** 走遍旗標組合：版本回退、忽略、簽章不符的優先序，以及「只有可更新才算提供」。 */
     @Test
     fun flagMatrix() {
@@ -57,8 +80,9 @@ class UpdatePolicyTest {
         val bools = listOf(true, false)
         for ((s, i, probe) in cases) for (certOk in bools) for (regression in bools) for (ignored in bools) {
             val verdict = UpdatePolicy.evaluate(s, i, certOk, regression, ignored, probe)
-            val hasUpdate = UpdatePolicy.isNewer(s, i.versionName, i.versionCode) ||
-                (probe != null && probe > i.versionCode && VersionOrder.compare(s.versionName, i.versionName) == 0)
+            val sameName = VersionOrder.compare(s.versionName, i.versionName) == 0
+            val hasUpdate = (probe != null && probe > i.versionCode && sameName) ||
+                UpdatePolicy.isNewer(s, i.versionName, i.versionCode, probe)
             val label = "store=${s.versionName}/${s.versionCode} probe=$probe cert=$certOk reg=$regression ign=$ignored"
             when {
                 !hasUpdate -> assertEquals(label, Verdict.UpToDate, verdict)

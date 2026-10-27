@@ -156,9 +156,11 @@ class UpdateRepository(
     }
 
     /** 忽略規則或版本回退標記改變後，重新判定這一筆。 */
-    fun reevaluate(pkg: String) = events.execute {
-        val entry = entries[pkg] ?: return@execute
-        val store = entry.store ?: return@execute
+    fun reevaluate(pkg: String) = events.execute { reevaluateNow(pkg) }
+
+    private fun reevaluateNow(pkg: String) {
+        val entry = entries[pkg] ?: return
+        val store = entry.store ?: return
         entries[pkg] = evaluate(entry.installed, store, entry.status).copy(error = entry.error)
         publish()
     }
@@ -297,25 +299,49 @@ class UpdateRepository(
     }
 
     /**
-     * 同 versionName 的商店重建（例如 B 站 9160100 → 9160300）無法從公開頁得知，
-     * 以 Range 讀取 APK 的 AndroidManifest 取得 versionCode；結果綁定 APK MD5 快取。
+     * 公開頁面的 versionCode 常是 0；提供更新前先用 Range 讀 APK 的 AndroidManifest，
+     * 以真實 versionCode 判定。應用寶原版是上傳本機 versionCode 讓伺服器判斷，
+     * 我們沒有那組私有協定，只能在本地補這一步。
+     *
+     * 這裡會等到所有候選都探測完才返回，背景 Worker 的 checkBlocking() 才不會
+     * 在探測完成前把「其實是降級」的版本排進自動更新。
      */
     private fun probeBuilds() {
-        for (entry in entries.values) {
-            val store = entry.store ?: continue
-            if (entry.verdict != Verdict.UpToDate || store.pkg == self.pkg) continue
-            if (VersionOrder.compare(store.versionName, entry.installed.versionName) != 0) continue
+        val pending = entries.values.mapNotNull { entry ->
+            val store = entry.store ?: return@mapNotNull null
+            if (store.pkg == self.pkg) return@mapNotNull null
+            if ((store.versionCode?.toLongOrNull() ?: 0L) > 0) return@mapNotNull null
+            if (VersionOrder.compare(store.versionName, entry.installed.versionName) < 0) return@mapNotNull null
+            if (entry.verdict == Verdict.Ignored || entry.verdict == Verdict.CertMismatch ||
+                entry.verdict == Verdict.Regression
+            ) return@mapNotNull null
             val url = Device.urlFor(store)
             val md5 = Abi.md5For(store, url)
-            if (cache.buildProbe(store.pkg, md5) != null) continue
+            if (md5.isBlank() || cache.buildProbe(store.pkg, md5) != null) return@mapNotNull null
+            Triple(store.pkg, url, md5)
+        }.distinctBy { it.first }
+        if (pending.isEmpty()) return
+
+        val latch = CountDownLatch(pending.size)
+        for ((pkg, url, md5) in pending) {
             probes.execute {
-                val code = runCatching { ApkBuildProbe.versionCode(url) }
-                    .onFailure { Log.w(TAG, "probe failed ${store.pkg}: ${it.message}") }
-                    .getOrNull() ?: return@execute
-                cache.putBuildProbe(store.pkg, md5, code)
-                reevaluate(store.pkg)
+                try {
+                    val code = runCatching { ApkBuildProbe.versionCode(url) }
+                        .onFailure { Log.w(TAG, "probe failed $pkg: ${it.message}") }
+                        .getOrNull()
+                    if (code != null && code > 0) {
+                        cache.putBuildProbe(pkg, md5, code)
+                        reevaluateNow(pkg)
+                    }
+                } finally {
+                    latch.countDown()
+                }
             }
         }
+        if (!latch.await(45, TimeUnit.SECONDS)) {
+            Log.w(TAG, "probe timeout: ${pending.size} pending")
+        }
+        cache.flush()
     }
 
     private fun evaluate(installed: InstalledApp, store: StoreApp, status: EntryStatus) =
@@ -323,13 +349,15 @@ class UpdateRepository(
 
     private fun verdictFor(installed: InstalledApp, store: StoreApp, allowIpc: Boolean): Verdict {
         val url = Device.urlFor(store)
+        val probed = cache.buildProbe(store.pkg, Abi.md5For(store, url))
         return UpdatePolicy.evaluate(
             store = store,
             installed = installed,
             certOk = certOk(installed, store.signatureMd5, allowIpc),
             regression = cache.isRegression(store.pkg, store.versionName),
             ignored = ignores.isIgnored(store.pkg, store.versionName, store.apkMd5),
-            probedBuild = cache.buildProbe(store.pkg, Abi.md5For(store, url))
+            probedBuild = probed,
+            requireVersionCode = probed == null
         )
     }
 
