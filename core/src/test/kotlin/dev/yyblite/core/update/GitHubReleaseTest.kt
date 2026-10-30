@@ -36,11 +36,11 @@ class GitHubReleaseTest {
         assertNull(GitHubReleases.parse(release("", "FlitStore.apk" to 1L)))
     }
 
-    /** 真的 Releases：最新正式版要能解析出版本號與 APK。 */
+    /** 真的 Releases：最新版（Beta、RC 也會標為 Latest）要能解析出版本號與 APK。 */
     @Test
     fun latestFromGitHub() {
         val latest = live { GitHubReleases.latest("hot-YUser/FlitStore") } ?: error("no release")
-        assertTrue(latest.versionName, Regex("\\d+(\\.\\d+)+").matches(latest.versionName))
+        assertTrue(latest.versionName, Regex("\\d+(\\.\\d+)+(-(alpha|beta|rc)\\.\\d+)?").matches(latest.versionName))
         assertTrue(latest.apkUrl, latest.apkUrl.startsWith("https://github.com/hot-YUser/FlitStore/releases/download/"))
         assertTrue(latest.apkSize > 0)
     }
