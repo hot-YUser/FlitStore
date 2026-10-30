@@ -8,12 +8,15 @@ import java.util.zip.Inflater
 import java.util.zip.InflaterInputStream
 
 /**
- * 只抓 APK 的中央目錄與 AndroidManifest.xml，解析 binary XML 取得 versionCode。
- * 用於偵測「versionName 相同、建置號不同」的商店重建（例如 B 站 9160100 → 9160300），
- * 不必下載完整 APK。網路錯誤丟例外，格式看不懂回 null。
+ * 只抓 APK 的中央目錄與 AndroidManifest.xml，解析 binary XML 取得 versionCode，
+ * 不必下載完整 APK。商店頁面的 versionCode 常是 0，更新判定靠這裡拿到真實的建置號。
+ * 網路錯誤丟例外，格式看不懂回 null。
  */
 object ApkBuildProbe {
     private const val ATTR_VERSION_CODE = 0x0101021b
+    private const val ATTR_VERSION_CODE_MAJOR = 0x01010576
+    private const val TYPE_INT_FIRST = 0x10
+    private const val TYPE_INT_LAST = 0x1f
 
     fun versionCode(url: String): Long? {
         val total = contentLength(url) ?: return null
@@ -79,7 +82,8 @@ object ApkBuildProbe {
         return null
     }
 
-    private fun parseVersionCode(xml: ByteArray): Long? {
+    /** 和 PackageInfo.getLongVersionCode() 同一種算法：versionCodeMajor 在高 32 位。 */
+    internal fun parseVersionCode(xml: ByteArray): Long? {
         var pos = 0
         var resourceMap = IntArray(0)
 
@@ -99,21 +103,21 @@ object ApkBuildProbe {
                     val attrSize = leU16(xml, pos + 26)
                     val attrCount = leU16(xml, pos + 28)
                     val attrsBase = pos + 16 + attrStart
+                    var code: Long? = null
+                    var major = 0L
                     for (i in 0 until attrCount) {
                         val a = attrsBase + i * attrSize
                         if (a + 20 > pos + size) break
                         val attrName = leU32(xml, a + 4).toInt()
-                        val rawValue = leU32(xml, a + 8).toInt()
                         val dataType = xml[a + 15].toInt() and 0xff
+                        if (dataType !in TYPE_INT_FIRST..TYPE_INT_LAST) continue
                         val data = leU32(xml, a + 16)
-                        val resId = if (attrName in resourceMap.indices) resourceMap[attrName] else 0
-                        if (resId == ATTR_VERSION_CODE) {
-                            return when (dataType) {
-                                0x03 -> rawValue.toLong() // string fallback
-                                else -> data
-                            }
+                        when (if (attrName in resourceMap.indices) resourceMap[attrName] else 0) {
+                            ATTR_VERSION_CODE -> code = data
+                            ATTR_VERSION_CODE_MAJOR -> major = data
                         }
                     }
+                    if (code != null) return (major shl 32) or code
                 }
             }
             pos += if (type == 0x0003) maxOf(headerSize, 8) else size

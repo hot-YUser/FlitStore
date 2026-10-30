@@ -66,23 +66,23 @@ class UpdatePolicyTest {
         )
     }
 
+    private data class Case(val store: StoreApp, val installed: InstalledApp, val probe: Long?, val hasUpdate: Boolean)
+
     /** 走遍旗標組合：版本回退、忽略、簽章不符的優先序，以及「只有可更新才算提供」。 */
     @Test
     fun flagMatrix() {
         val cases = listOf(
-            Triple(store("2.0"), installed("1.0", 10), null),          // 版本號較新
-            Triple(store("1.0", "20"), installed("1.0", 10), null),    // versionCode 較新
-            Triple(store("1.0"), installed("1.0", 10), 11L),           // 同版重建
-            Triple(store("1.0"), installed("1.0", 10), null),          // 相同
-            Triple(store("0.9"), installed("1.0", 10), 99L),           // 商店較舊，探測值不該生效
-            Triple(store("1.0"), installed("1.0", 10), 9L)             // 探測到較舊的建置
+            Case(store("2.0"), installed("1.0", 10), null, true),       // 版本號較新
+            Case(store("1.0", "20"), installed("1.0", 10), null, true), // versionCode 較新
+            Case(store("1.0"), installed("1.0", 10), 11L, true),        // 同版重建
+            Case(store("1.0"), installed("1.0", 10), null, false),      // 相同
+            Case(store("0.9"), installed("1.0", 10), 99L, true),        // 版本號較舊、建置號較新：看建置號
+            Case(store("2.0"), installed("1.0", 10), 9L, false),        // 版本號較新、建置號較舊：看建置號
+            Case(store("1.0"), installed("1.0", 10), 9L, false)         // 探測到較舊的建置
         )
         val bools = listOf(true, false)
-        for ((s, i, probe) in cases) for (certOk in bools) for (regression in bools) for (ignored in bools) {
+        for ((s, i, probe, hasUpdate) in cases) for (certOk in bools) for (regression in bools) for (ignored in bools) {
             val verdict = UpdatePolicy.evaluate(s, i, certOk, regression, ignored, probe)
-            val sameName = VersionOrder.compare(s.versionName, i.versionName) == 0
-            val hasUpdate = (probe != null && probe > i.versionCode && sameName) ||
-                UpdatePolicy.isNewer(s, i.versionName, i.versionCode, probe)
             val label = "store=${s.versionName}/${s.versionCode} probe=$probe cert=$certOk reg=$regression ign=$ignored"
             when {
                 !hasUpdate -> assertEquals(label, Verdict.UpToDate, verdict)

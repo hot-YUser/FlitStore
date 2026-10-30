@@ -60,6 +60,7 @@ object UpdatePolicy {
      * @param regression 這個商店版本是否已被標記為版本回退
      * @param ignored 使用者是否忽略了這個版本或整個應用
      * @param probedBuild 從 APK Manifest 探測到的 versionCode；商店頁沒有 versionCode 時的主要依據
+     * @param requireVersionCode 探測結果還沒出來：商店頁也沒有 versionCode 時先不提供更新
      */
     fun evaluate(
         store: StoreApp,
@@ -68,7 +69,6 @@ object UpdatePolicy {
         regression: Boolean,
         ignored: Boolean,
         probedBuild: Long? = null,
-        /** 商店頁沒有 versionCode 且尚未探測 APK 時，先不要提供更新。 */
         requireVersionCode: Boolean = false
     ): Verdict {
         val probed = probedBuild?.takeIf { it > 0 }

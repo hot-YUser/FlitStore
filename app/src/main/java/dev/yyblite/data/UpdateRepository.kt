@@ -140,6 +140,7 @@ class UpdateRepository(
         entries[pkg] = cached?.let { evaluate(installed, it, EntryStatus.CACHED) } ?: UpdateEntry(installed)
         publish()
         apply(pkg, lookup(pkg))
+        probeBuilds(listOfNotNull(entries[pkg]))
         publish()
     }
 
@@ -152,6 +153,7 @@ class UpdateRepository(
     fun recheck(pkg: String) = events.execute {
         if (entries[pkg] == null) return@execute
         apply(pkg, lookup(pkg))
+        probeBuilds(listOfNotNull(entries[pkg]))
         publish()
     }
 
@@ -232,6 +234,10 @@ class UpdateRepository(
             progress.incrementAndGet()
             publish()
         }
+        // 探測完才算檢查結束：還沒探測的項目先不提供更新，提早結束會讓畫面誤報「已是最新」。
+        if (!probeBuilds(entries.values).await(PROBE_WAIT_SECONDS, TimeUnit.SECONDS)) {
+            Log.w(TAG, "probe still running after ${PROBE_WAIT_SECONDS}s")
+        }
         cache.checkedAt = System.currentTimeMillis()
         cache.flush()
         checking = false
@@ -242,7 +248,6 @@ class UpdateRepository(
                 "${entries.values.count { it.verdict?.offered == true }} offered, " +
                 "${entries.values.count { it.status == EntryStatus.FAILED }} failed"
         )
-        probeBuilds()
     }
 
     /** 固定大小的執行緒池同時查詢；失敗的隔 400ms 重試一次。 */
@@ -303,25 +308,20 @@ class UpdateRepository(
      * 以真實 versionCode 判定。應用寶原版是上傳本機 versionCode 讓伺服器判斷，
      * 我們沒有那組私有協定，只能在本地補這一步。
      *
-     * 這裡會等到所有候選都探測完才返回，背景 Worker 的 checkBlocking() 才不會
+     * 回傳的 latch 在這一批都判定完後歸零；背景 Worker 的 checkBlocking() 靠它才不會
      * 在探測完成前把「其實是降級」的版本排進自動更新。
      */
-    private fun probeBuilds() {
-        val pending = entries.values.mapNotNull { entry ->
+    private fun probeBuilds(candidates: Collection<UpdateEntry>): CountDownLatch {
+        val pending = candidates.mapNotNull { entry ->
             val store = entry.store ?: return@mapNotNull null
-            if (store.pkg == self.pkg) return@mapNotNull null
             if ((store.versionCode?.toLongOrNull() ?: 0L) > 0) return@mapNotNull null
             if (VersionOrder.compare(store.versionName, entry.installed.versionName) < 0) return@mapNotNull null
-            if (entry.verdict == Verdict.Ignored || entry.verdict == Verdict.CertMismatch ||
-                entry.verdict == Verdict.Regression
-            ) return@mapNotNull null
             val url = Device.urlFor(store)
             val md5 = Abi.md5For(store, url)
-            if (md5.isBlank() || cache.buildProbe(store.pkg, md5) != null) return@mapNotNull null
+            if (!probeable(store, md5) || cache.buildProbe(store.pkg, md5) != null) return@mapNotNull null
             if (cache.probeFailed(store.pkg, md5)) return@mapNotNull null
             Triple(store.pkg, url, md5)
         }.distinctBy { it.first }
-        if (pending.isEmpty()) return
 
         val latch = CountDownLatch(pending.size)
         for ((pkg, url, md5) in pending) {
@@ -341,11 +341,11 @@ class UpdateRepository(
                 }
             }
         }
-        if (!latch.await(45, TimeUnit.SECONDS)) {
-            Log.w(TAG, "probe timeout: ${pending.size} pending")
-        }
-        cache.flush()
+        return latch
     }
+
+    /** 自己的 GitHub 版本和沒有 MD5 的項目無從綁定探測結果：不探測，判定時也不等。 */
+    private fun probeable(store: StoreApp, md5: String) = store.pkg != self.pkg && md5.isNotBlank()
 
     private fun evaluate(installed: InstalledApp, store: StoreApp, status: EntryStatus) =
         UpdateEntry(installed, store, verdictFor(installed, store, allowIpc = true), status)
@@ -361,7 +361,7 @@ class UpdateRepository(
             regression = cache.isRegression(store.pkg, store.versionName),
             ignored = ignores.isIgnored(store.pkg, store.versionName, store.apkMd5),
             probedBuild = probed,
-            requireVersionCode = probed == null && !cache.probeFailed(store.pkg, md5)
+            requireVersionCode = probeable(store, md5) && probed == null && !cache.probeFailed(store.pkg, md5)
         )
     }
 
@@ -411,6 +411,7 @@ class UpdateRepository(
         const val FOREGROUND_THREADS = 128
         const val BACKGROUND_THREADS = 32
         const val PUBLISH_INTERVAL_MS = 150L
+        const val PROBE_WAIT_SECONDS = 45L
 
         fun daemonPool(threads: Int, name: String) = Executors.newFixedThreadPool(threads) { r ->
             Thread(r, name).apply { isDaemon = true }
