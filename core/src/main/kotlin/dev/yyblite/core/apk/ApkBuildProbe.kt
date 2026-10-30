@@ -3,7 +3,10 @@ package dev.yyblite.core.apk
 import dev.yyblite.core.net.Http
 import dev.yyblite.core.net.HttpStatusException
 import java.io.ByteArrayInputStream
+import java.io.DataInputStream
+import java.io.EOFException
 import java.io.IOException
+import java.io.InputStream
 import java.util.zip.Inflater
 import java.util.zip.InflaterInputStream
 
@@ -17,11 +20,13 @@ object ApkBuildProbe {
     private const val ATTR_VERSION_CODE_MAJOR = 0x01010576
     private const val TYPE_INT_FIRST = 0x10
     private const val TYPE_INT_LAST = 0x1f
+    /** ZIP 結尾記錄 22 位元組，加上最長 65535 位元組的註解。 */
+    private const val EOCD_MAX_BYTES = 65557L
+    private val MANIFEST_NAME = "AndroidManifest.xml".toByteArray()
 
     fun versionCode(url: String): Long? {
         val total = contentLength(url) ?: return null
-        val tailSize = minOf(total, 512L * 1024)
-        val tailStart = total - tailSize
+        val tailStart = total - minOf(total, EOCD_MAX_BYTES)
         val tail = range(url, tailStart, total - 1)
 
         val eocd = findEocd(tail) ?: return null
@@ -29,12 +34,13 @@ object ApkBuildProbe {
         val cdOffset = leU32(tail, eocd + 16)
         if (cdOffset <= 0 || cdSize <= 0) return null
 
-        val cd = if (cdOffset >= tailStart && cdOffset + cdSize <= total) {
-            tail.copyOfRange((cdOffset - tailStart).toInt(), (cdOffset - tailStart + cdSize).toInt())
+        // 中央目錄可達數 MB，而且第一次檢查每個應用都要探測：讀到 Manifest 那一筆就斷線。
+        val entry = if (cdOffset >= tailStart && cdOffset + cdSize <= total) {
+            findManifestEntry(ByteArrayInputStream(tail, (cdOffset - tailStart).toInt(), cdSize.toInt()))
         } else {
-            range(url, cdOffset, minOf(total, cdOffset + cdSize) - 1)
+            rangeStream(url, cdOffset, minOf(total, cdOffset + cdSize) - 1, ::findManifestEntry)
         }
-        val entry = findEntry(cd, "AndroidManifest.xml") ?: return null
+        if (entry == null) return null
         val header = range(url, entry.localOffset, entry.localOffset + 29)
         if (header.size < 30 || header[0] != 'P'.code.toByte()) return null
         val nameLen = leU16(header, 26)
@@ -51,24 +57,27 @@ object ApkBuildProbe {
         return parseVersionCode(manifest)
     }
 
-    private data class Entry(val localOffset: Long, val compressedSize: Long, val method: Int)
+    internal data class Entry(val localOffset: Long, val compressedSize: Long, val method: Int)
 
-    private fun findEntry(cd: ByteArray, name: String): Entry? {
-        var pos = 0
-        while (pos + 46 <= cd.size && cd[pos] == 'P'.code.toByte() && cd[pos + 1] == 'K'.code.toByte() &&
-            cd[pos + 2] == 1.toByte() && cd[pos + 3] == 2.toByte()
-        ) {
-            val method = leU16(cd, pos + 10)
-            val compressed = leU32(cd, pos + 20)
-            val nameLen = leU16(cd, pos + 28)
-            val extraLen = leU16(cd, pos + 30)
-            val commentLen = leU16(cd, pos + 32)
-            val localOffset = leU32(cd, pos + 42)
-            val entryName = String(cd, pos + 46, nameLen, Charsets.UTF_8)
-            if (entryName == name) return Entry(localOffset, compressed, method)
-            pos += 46 + nameLen + extraLen + commentLen
+    /** 逐筆讀中央目錄，找到就返回，後面的內容不必傳輸。 */
+    internal fun findManifestEntry(raw: InputStream): Entry? {
+        val input = DataInputStream(raw.buffered())
+        val header = ByteArray(46)
+        try {
+            while (true) {
+                input.readFully(header)
+                if (header[0] != 'P'.code.toByte() || header[1] != 'K'.code.toByte() ||
+                    header[2] != 1.toByte() || header[3] != 2.toByte()
+                ) return null
+                val name = ByteArray(leU16(header, 28)).also(input::readFully)
+                if (name.contentEquals(MANIFEST_NAME)) {
+                    return Entry(leU32(header, 42), leU32(header, 20), leU16(header, 10))
+                }
+                input.readFully(ByteArray(leU16(header, 30) + leU16(header, 32)))
+            }
+        } catch (e: EOFException) {
+            return null
         }
-        return null
     }
 
     private fun findEocd(tail: ByteArray): Int? {
@@ -135,7 +144,10 @@ object ApkBuildProbe {
         }
     }
 
-    private fun range(url: String, start: Long, end: Long): ByteArray {
+    private fun range(url: String, start: Long, end: Long): ByteArray =
+        rangeStream(url, start, end) { it.readBytes() }
+
+    private fun <T> rangeStream(url: String, start: Long, end: Long, read: (InputStream) -> T): T {
         if (end < start) throw IOException("invalid range")
         val conn = Http.open(
             url,
@@ -147,7 +159,7 @@ object ApkBuildProbe {
         try {
             val code = conn.responseCode
             if (code != 206 && code != 200) throw HttpStatusException(code)
-            return conn.inputStream.use { it.readBytes() }
+            return read(conn.inputStream)
         } finally {
             conn.disconnect()
         }

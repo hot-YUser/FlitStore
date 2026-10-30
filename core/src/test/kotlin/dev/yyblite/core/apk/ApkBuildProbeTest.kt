@@ -2,8 +2,11 @@ package dev.yyblite.core.apk
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.FilterInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -66,6 +69,46 @@ class ApkBuildProbeTest {
     @Test
     fun missingAttributeIsNull() {
         assertNull(ApkBuildProbe.parseVersionCode(manifest(Attr(0x01010001, TYPE_DEC, -1, 9))))
+    }
+
+    private fun cdRecord(name: String, localOffset: Int, compressed: Int, method: Int, extra: Int = 0): ByteArray {
+        val bytes = name.toByteArray()
+        return ByteBuffer.allocate(46 + bytes.size + extra).order(ByteOrder.LITTLE_ENDIAN).apply {
+            put(byteArrayOf('P'.code.toByte(), 'K'.code.toByte(), 1, 2))
+            putShort(10, method.toShort())
+            putInt(20, compressed)
+            putShort(28, bytes.size.toShort())
+            putShort(30, extra.toShort())
+            putInt(42, localOffset)
+            position(46)
+            put(bytes)
+        }.array()
+    }
+
+    /** 找到後就不再往下讀：後面放的是會讓解析失敗的垃圾，碰到就代表讀過頭。 */
+    @Test
+    fun stopsReadingAtManifestEntry() {
+        val cd = cdRecord("classes.dex", 0, 9, 8, extra = 7) +
+            cdRecord("AndroidManifest.xml", 4096, 321, 8) +
+            ByteArray(4096)
+        var read = 0
+        val counting = object : FilterInputStream(ByteArrayInputStream(cd)) {
+            override fun read(b: ByteArray, off: Int, len: Int) = super.read(b, off, minOf(len, 1)).also { if (it > 0) read += it }
+        }
+        assertEquals(
+            ApkBuildProbe.Entry(4096, 321, 8),
+            ApkBuildProbe.findManifestEntry(counting)
+        )
+        assertTrue("read=$read of ${cd.size}", read <= cd.size - 4096 + 8192)
+    }
+
+    @Test
+    fun manifestEntryMissingOrTruncatedIsNull() {
+        val noManifest = cdRecord("classes.dex", 0, 9, 8)
+        assertNull(ApkBuildProbe.findManifestEntry(ByteArrayInputStream(noManifest)))
+        val truncated = cdRecord("AndroidManifest.xml", 4096, 321, 8).copyOf(50)
+        assertNull(ApkBuildProbe.findManifestEntry(ByteArrayInputStream(truncated)))
+        assertNull(ApkBuildProbe.findManifestEntry(ByteArrayInputStream(ByteArray(64))))
     }
 
     private companion object {
