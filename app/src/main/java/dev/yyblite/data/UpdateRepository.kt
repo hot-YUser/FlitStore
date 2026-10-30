@@ -123,8 +123,12 @@ class UpdateRepository(
 
     /** 詳情頁在背景呼叫：允許讀簽章，結果更精確。 */
     fun statusOfBlocking(store: StoreApp): AppStatus {
+        // 清單來的資料沒有 64 位連結，對不上探測結果：詳情載入前先沿用目前的結論。
+        if (!store.detailed) return statusOf(store)
         val installed = entries[store.pkg]?.installed ?: InstalledApps.read(ctx, store.pkg)
             ?: return AppStatus.NotInstalled
+        // 可能是上次檢查之後才上架的版本：先探測，按鈕才不會誤顯示已是最新。
+        probeBuilds(listOf(UpdateEntry(installed, store))).await(PROBE_WAIT_SECONDS, TimeUnit.SECONDS)
         return AppStatus.Installed(installed, verdictFor(installed, store, allowIpc = true))
     }
 
