@@ -20,8 +20,8 @@ android {
         applicationId = "dev.yyblite"
         minSdk = 24
         targetSdk = 37
-        versionCode = 12
-        versionName = "1.1.1"
+        versionCode = 13
+        versionName = "1.1.2-beta.1"
     }
 
     buildFeatures {
