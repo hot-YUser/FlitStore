@@ -36,6 +36,11 @@ class UpdateCache(private val ctx: Context) {
         return decoded[pkg]
     }
 
+    fun all(): List<StoreApp> {
+        warmUp()
+        return decoded.values.toList()
+    }
+
     fun put(app: StoreApp) {
         warmUp()
         decoded[app.pkg] = app
@@ -62,12 +67,14 @@ class UpdateCache(private val ctx: Context) {
 
     fun markRegression(pkg: String, storeVersion: String) = meta.put("rg:$pkg", storeVersion)
 
-    /** 探測失敗的短期記錄，避免每次刷新都重試同一個 APK；過期後再試。 */
-    fun probeFailed(pkg: String, md5: String): Boolean {
-        val raw = meta["pf:$pkg"] ?: return false
-        if (raw.substringBefore('|') != md5) return false
-        val at = raw.substringAfter('|').toLongOrNull() ?: return false
-        return System.currentTimeMillis() - at < PROBE_FAIL_TTL_MS
+    /** 這個 APK 探測失敗過：判定改比版本名稱，直到探測成功。 */
+    fun probeFailed(pkg: String, md5: String): Boolean = meta["pf:$pkg"]?.substringBefore('|') == md5
+
+    /** 沒失敗過，或失敗已久才再探測，避免每次刷新都打同一個 APK。 */
+    fun probeDue(pkg: String, md5: String): Boolean {
+        if (!probeFailed(pkg, md5)) return true
+        val at = meta["pf:$pkg"]?.substringAfter('|')?.toLongOrNull() ?: return true
+        return System.currentTimeMillis() - at >= PROBE_RETRY_MS
     }
 
     fun markProbeFailed(pkg: String, md5: String) =
@@ -93,6 +100,6 @@ class UpdateCache(private val ctx: Context) {
 
     private companion object {
         const val NEGATIVE_TTL_MS = 3L * 24 * 60 * 60 * 1000
-        const val PROBE_FAIL_TTL_MS = 6L * 60 * 60 * 1000
+        const val PROBE_RETRY_MS = 6L * 60 * 60 * 1000
     }
 }

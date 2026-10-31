@@ -14,6 +14,7 @@ import dev.yyblite.core.update.Verdict
 import dev.yyblite.core.update.VersionOrder
 import dev.yyblite.platform.Device
 import dev.yyblite.platform.InstalledApps
+import dev.yyblite.platform.Notifications
 import dev.yyblite.platform.Signatures
 import dev.yyblite.ui.image.ThumbCache
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -186,6 +187,7 @@ class UpdateRepository(
         reevaluate(pkg)
     }
 
+    /** 前景與背景走同一條檢查流程，只差查詢的執行緒數；檢查的結論都留在快取，下次打開直接顯示。 */
     private fun start(threads: Int): CountDownLatch = synchronized(this) {
         runLatch?.takeIf { it.count > 0 }?.let { return it }
         val latch = CountDownLatch(1)
@@ -208,6 +210,7 @@ class UpdateRepository(
     private fun runCheck(threads: Int) {
         scanning = true
         publish(immediate = true)
+        showCached()
         val scanStart = SystemClock.elapsedRealtime()
         val installed = InstalledApps.scan(ctx)
         ThumbCache.preloadInstalled(ctx, installed.map { it.pkg })
@@ -246,12 +249,29 @@ class UpdateRepository(
         cache.flush()
         checking = false
         publish(immediate = true)
+        val offered = entries.values.count { it.verdict?.offered == true }
+        // 都更新完了的話，之前發的通知就不再成立。
+        if (offered == 0) Notifications.updatesFound(ctx, emptyList())
         Log.i(
             TAG,
             "check done: ${toCheck.size}/${installed.size} apps in ${SystemClock.elapsedRealtime() - checkStart}ms, " +
-                "${entries.values.count { it.verdict?.offered == true }} offered, " +
+                "$offered offered, " +
                 "${entries.values.count { it.status == EntryStatus.FAILED }} failed"
         )
+    }
+
+    /**
+     * 冷啟動先從快取給出上次檢查的結論，畫面不必等掃描完所有應用。
+     * 這裡只讀有商店資料的應用，其他的等接下來的掃描補上。
+     */
+    private fun showCached() {
+        if (loaded) return
+        for (store in cache.all()) {
+            val app = InstalledApps.read(ctx, store.pkg) ?: continue
+            entries[app.pkg] = evaluate(app, store, EntryStatus.CACHED)
+        }
+        ThumbCache.preloadInstalled(ctx, entries.values.filter { it.verdict != Verdict.UpToDate }.map { it.installed.pkg })
+        publish(immediate = true)
     }
 
     /** 固定大小的執行緒池同時查詢；失敗的隔 400ms 重試一次。 */
@@ -318,12 +338,10 @@ class UpdateRepository(
     private fun probeBuilds(candidates: Collection<UpdateEntry>): CountDownLatch {
         val pending = candidates.mapNotNull { entry ->
             val store = entry.store ?: return@mapNotNull null
-            if ((store.versionCode?.toLongOrNull() ?: 0L) > 0) return@mapNotNull null
-            if (VersionOrder.compare(store.versionName, entry.installed.versionName) < 0) return@mapNotNull null
+            if (!needsBuild(entry.installed, store)) return@mapNotNull null
             val url = Device.urlFor(store)
             val md5 = Abi.md5For(store, url)
-            if (!probeable(store, md5) || cache.buildProbe(store.pkg, md5) != null) return@mapNotNull null
-            if (cache.probeFailed(store.pkg, md5)) return@mapNotNull null
+            if (!cache.probeDue(store.pkg, md5)) return@mapNotNull null
             Triple(store.pkg, url, md5)
         }.distinctBy { it.first }
 
@@ -348,24 +366,39 @@ class UpdateRepository(
         return latch
     }
 
-    /** 自己的 GitHub 版本和沒有 MD5 的項目無從綁定探測結果：不探測，判定時也不等。 */
-    private fun probeable(store: StoreApp, md5: String) = store.pkg != self.pkg && md5.isNotBlank()
+    /**
+     * 判定要靠 APK 探測的項目：商店頁沒有 versionCode、版本不比已安裝舊，而且還沒有建置號。
+     * 自己的 GitHub 版本和沒有 MD5 的項目無從綁定探測結果，不算在內。
+     */
+    private fun needsBuild(installed: InstalledApp, store: StoreApp): Boolean {
+        if ((store.versionCode?.toLongOrNull() ?: 0L) > 0 || store.pkg == self.pkg) return false
+        if (VersionOrder.compare(store.versionName, installed.versionName) < 0) return false
+        val md5 = Abi.md5For(store, Device.urlFor(store))
+        return md5.isNotBlank() && cache.buildProbe(store.pkg, md5) == null
+    }
 
-    private fun evaluate(installed: InstalledApp, store: StoreApp, status: EntryStatus) =
-        UpdateEntry(installed, store, verdictFor(installed, store, allowIpc = true), status)
+    /** 還在等探測結果；失敗過的不算，那些改比版本名稱。 */
+    private fun awaitsProbe(installed: InstalledApp, store: StoreApp): Boolean =
+        needsBuild(installed, store) && !cache.probeFailed(store.pkg, Abi.md5For(store, Device.urlFor(store)))
+
+    private fun evaluate(installed: InstalledApp, store: StoreApp, status: EntryStatus): UpdateEntry {
+        // 新版本探測完之前沿用目前的結論：已列出的更新不會閃一下消失，探測完會重新判定。
+        val current = entries[store.pkg]
+            ?.takeIf { it.installed == installed && it.verdict?.offered == true && awaitsProbe(installed, store) }
+            ?.verdict
+        return UpdateEntry(installed, store, current ?: verdictFor(installed, store, allowIpc = true), status)
+    }
 
     private fun verdictFor(installed: InstalledApp, store: StoreApp, allowIpc: Boolean): Verdict {
         val url = Device.urlFor(store)
-        val md5 = Abi.md5For(store, url)
-        val probed = cache.buildProbe(store.pkg, md5)
         return UpdatePolicy.evaluate(
             store = store,
             installed = installed,
             certOk = certOk(installed, store.signatureMd5, allowIpc),
             regression = cache.isRegression(store.pkg, store.versionName),
             ignored = ignores.isIgnored(store.pkg, store.versionName, store.apkMd5),
-            probedBuild = probed,
-            requireVersionCode = probeable(store, md5) && probed == null && !cache.probeFailed(store.pkg, md5)
+            probedBuild = cache.buildProbe(store.pkg, Abi.md5For(store, url)),
+            requireVersionCode = awaitsProbe(installed, store)
         )
     }
 

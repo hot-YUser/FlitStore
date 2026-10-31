@@ -185,7 +185,8 @@ fun UpdatesTab(bottom: PaddingValues) {
                     }
                 }
                 when {
-                    !state.loaded -> item(key = "loading") { LoadingBox() }
+                    // 快取裡有待更新的項目就直接顯示，沒有才等第一次掃描。
+                    !state.loaded && offered.isEmpty() && state.blocked.isEmpty() -> item(key = "loading") { LoadingBox() }
                     offered.isEmpty() && state.blocked.isEmpty() && !state.checking -> item(key = "none") {
                         MessageBox(
                             icon = R.drawable.ic_check,
