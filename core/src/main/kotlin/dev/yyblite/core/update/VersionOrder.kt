@@ -3,11 +3,12 @@ package dev.yyblite.core.update
 /**
  * 以數字段比較版本字串，忽略非數字分隔符。
  * "9.04.65" 與 "9.4.65" 等值；"1.10.0" > "1.9.9"。
- * 結尾的 -alpha／-beta／-rc 是預覽版：版號相同時正式版較新，"1.1.1" > "1.1.1-beta.2" > "1.1.1-beta.1"。
+ * 結尾的 -alpha／-beta／-rc 是預覽版：版號相同時正式版較新，"1.1.1" > "1.1.1-rc.1" > "1.1.1-beta.2" > "1.1.1-beta.1"。
  */
 object VersionOrder {
     private val SPLIT = Regex("[^0-9]+")
     private val PRERELEASE = Regex("[-.]?(alpha|beta|rc)[-.]?(\\d*)$", RegexOption.IGNORE_CASE)
+    private val STAGES = listOf("alpha", "beta", "rc")
 
     fun compare(a: String?, b: String?): Int {
         val pa = a?.let { PRERELEASE.find(it) }
@@ -16,8 +17,11 @@ object VersionOrder {
         if (base != 0 || (pa == null && pb == null)) return base
         if (pa == null) return 1
         if (pb == null) return -1
-        return numeric(pa.groupValues[2], pb.groupValues[2])
+        val stage = stage(pa).compareTo(stage(pb))
+        return if (stage != 0) stage else numeric(pa.groupValues[2], pb.groupValues[2])
     }
+
+    private fun stage(match: MatchResult) = STAGES.indexOf(match.groupValues[1].lowercase())
 
     private fun numeric(a: String?, b: String?): Int {
         val left = parts(a)

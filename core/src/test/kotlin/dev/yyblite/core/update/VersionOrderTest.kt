@@ -25,6 +25,8 @@ class VersionOrderTest {
         assertTrue(VersionOrder.compare("1.1.1-beta.1", "1.1.0") > 0)
         assertTrue(VersionOrder.compare("1.1.0", "1.1.1-rc.1") < 0)
         assertTrue(VersionOrder.compare("2.0-RC2", "2.0-rc1") > 0)
+        assertTrue(VersionOrder.compare("1.1.1-rc.1", "1.1.1-beta.2") > 0)
+        assertTrue(VersionOrder.compare("1.1.1-beta.1", "1.1.1-alpha.9") > 0)
         assertEquals(0, VersionOrder.compare("1.1.1-beta.1", "1.1.1-beta.1"))
         assertEquals(0, VersionOrder.compare("3.2.1-gp", "3.2.1"))
     }
